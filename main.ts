@@ -25,9 +25,12 @@ interface VoiceNotesPluginSettings {
 	token?: string;
 	username?: string;
 	password?: string;
+	syncTimeout?: number;
 }
 
-const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {}
+const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
+	syncTimeout: 30
+}
 
 export default class VoiceNotesPlugin extends Plugin {
 	settings: VoiceNotesPluginSettings;
@@ -41,11 +44,27 @@ export default class VoiceNotesPlugin extends Plugin {
 
 	async onload() {
 		console.log('Loading Voice Notes plugin');
-		this.vnApi = new VoiceNotesApi({});
 
 		await this.loadSettings();
 		this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
 
+		await this.sync();
+	}
+
+	onunload() {
+		console.log('unloading Voice Notes plugin');
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
+
+	async sync() {
+		this.vnApi = new VoiceNotesApi({});
 		this.vnApi.token = this.settings.token
 
 		if (!this.fs.exists("voicenotes")) {
@@ -58,10 +77,25 @@ export default class VoiceNotesPlugin extends Plugin {
 
 		if (recordings) {
 			for (const recording of recordings.data) {
+				if (!recording.title) {
+					new Notice(`Unable to grab voice recording with id: ${recording.id}`)
+					continue
+				}
 				const recordingPath = `${voiceNotesDir}/${recording.title}.md`
+
+				// if (this.fs.exists(recordingPath)) {
+				// 	// TODO this should probably check the updated_at and we should save this in metadata too
+				// 	console.log(`${recordingPath} already synced, moving on`)
+				// }
+
 				console.log(`Recording Path: ${recordingPath}`)
 
-				let note = ''
+				let note = '---\n'
+				note += `duration: ${recording.duration}\n`
+        note += `created_at: ${recording.created_at}\n`
+        note += `updated_at: ${recording.updated_at}\n`
+				note += '---\n'
+
 				note += recording.transcript
 				note += '\n'
 				for (const creation of recording.creations) {
@@ -87,18 +121,6 @@ export default class VoiceNotesPlugin extends Plugin {
 				await this.fs.write(recordingPath, note)
 			}
 		}
-	}
-
-	onunload() {
-		console.log('unloading Voice Notes plugin');
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
 	}
 }
 
@@ -182,19 +204,26 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.addButton(button => button
-					.setButtonText("Get Recordings")
+					.setButtonText("Manual Sync")
 					.onClick(async (evt) => {
 
-						const recordings = await this.vnApi.getRecordings()
-
-						recordings.data.forEach((recording) => {
-							console.dir(recording.transcript)
-						})
-
+						await this.plugin.sync();
 					})
 				)
 
 		}
+
+		new Setting(containerEl)
+			.setName("Sync Every")
+			.setDesc("Number of minutes between syncing with VoiceNotes.com servers")
+			.addText(text => text
+				.setPlaceholder("30")
+				.setValue(`${this.plugin.settings.syncTimeout}`)
+				.onChange(async (value) => {
+					this.plugin.settings.syncTimeout = Number(value);
+					await this.plugin.saveSettings();
+				})
+			)
 
 	}
 }

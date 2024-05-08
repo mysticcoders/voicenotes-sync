@@ -1,5 +1,5 @@
 import {requestUrl} from "obsidian";
-import {OuraActivityEntries, OuraReadinessEntries, OuraSleepEntries, OuraUserInfo, VoiceNoteRecordings} from "./types";
+import {VoiceNoteRecordings} from "./types";
 
 const VOICENOTES_API_URL = 'https://api.voicenotes.com/api'
 
@@ -39,61 +39,6 @@ export default class VoiceNotesApi {
         }
         return null
     }
-    // async getSleepData(theDate: string): Promise<OuraSleepEntries> {
-    //     if (this.token) {
-    //         const params = new URLSearchParams()
-    //         const start = window.moment(theDate).subtract(1, 'days').format('YYYY-MM-DD')
-    //         params.set('start_date', start)
-    //         params.set('end_date', theDate)
-    //         const data = await request({
-    //             url: `${OURA_API_URL}/daily_sleep?${params.toString()}`, headers: {
-    //                 'Authorization': `Bearer ${this.token}`
-    //             }
-    //         })
-    //
-    //         return JSON.parse(data) as OuraSleepEntries
-    //     }
-    //     return null
-    // }
-    //
-    // async getRecordings(): Promise<String> {
-    //
-    // }
-    //
-    // async getActivityData(theDate: string): Promise<OuraActivityEntries> {
-    //     if (this.token) {
-    //         const params = new URLSearchParams()
-    //         const start = window.moment(theDate).subtract(1, 'days').format('YYYY-MM-DD')
-    //         params.set('start_date', start)
-    //         params.set('end_date', theDate)
-    //         const data = await request({
-    //             url: `${OURA_API_URL}/daily_activity?${params.toString()}`, headers: {
-    //                 'Authorization': `Bearer ${this.token}`
-    //             }
-    //         })
-    //
-    //         return JSON.parse(data) as OuraActivityEntries
-    //     }
-    //     return null
-    // }
-    //
-    // async getReadinessData(theDate: string): Promise<OuraReadinessEntries> {
-    //     if (this.token) {
-    //         const params = new URLSearchParams()
-    //         const start = window.moment(theDate).subtract(1, 'days').format('YYYY-MM-DD')
-    //         params.set('start_date', start)
-    //         params.set('end_date', theDate)
-    //         const data = await request({
-    //             url: `${OURA_API_URL}/daily_readiness?${params.toString()}`, headers: {
-    //                 'Authorization': `Bearer ${this.token}`
-    //             }
-    //         })
-    //
-    //         return JSON.parse(data) as OuraReadinessEntries
-    //     }
-    //     return null
-    // }
-    //
 
     async getRecordings(): Promise<VoiceNoteRecordings> {
         if (this.token) {
