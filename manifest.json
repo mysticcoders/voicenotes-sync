@@ -1,6 +1,6 @@
 {
 	"id": "voicenotes-sync",
-	"name": "Voice Notes",
+	"name": "Voice Notes Sync",
 	"version": "0.0.1",
 	"minAppVersion": "0.9.12",
 	"description": "Voice Notes sync plugin",
