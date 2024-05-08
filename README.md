@@ -1,12 +1,13 @@
-## Voicenotes Plugin for Obsidian
+## Voicenotes Sync for Obsidian
 
-API is unpublished.
+API is unpublished. Through a bit of checking in Developer Tools easy enough to find and develop against. Hopefully 
+the developers of this really useful tool will publish an API doc soon.
 
 ### Features
 - Sync data from VoiceNotes.com
 
 ### Installation
-The VoiceNotes.com Plugin for Obsidian release is pending review.
+The VoiceNotes.com Sync Plugin for Obsidian release is pending review.
 
 ### Manual Installation
 Two methods and the first one is easier:
@@ -16,9 +17,9 @@ Two methods and the first one is easier:
 - Go to settings and under Beta Plugin List click "Add Beta plugin" and type mysticcoders/voicenotes-plugin
 
 #### Method 2
-- Create an `voicenotes-plugin` folder under `.obsidian/plugins` in your vault. Add the
+- Create an `voicenotes-sync` folder under `.obsidian/plugins` in your vault. Add the
   `main.js`, `manifest.json`, and the `styles.css` files from the
-  [latest release](https://github.com/kinabalu/obsidian-oura-plugin/releases) to the folder.
+  [latest release](https://github.com/kinabalu/voicenotes-sync/releases) to the folder.
 
 ### Usage
 

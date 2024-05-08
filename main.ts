@@ -29,13 +29,17 @@ interface VoiceNotesPluginSettings {
 }
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
-	syncTimeout: 30
+	syncTimeout: 60
 }
 
 export default class VoiceNotesPlugin extends Plugin {
 	settings: VoiceNotesPluginSettings;
 	vnApi: VoiceNotesApi;
 	fs: DataAdapter;
+	syncInterval : number;
+	timeSinceSync : number = 0;
+
+	ONE_SECOND = 1000;
 
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest)
@@ -44,6 +48,7 @@ export default class VoiceNotesPlugin extends Plugin {
 
 	async onload() {
 		console.log('Loading Voice Notes plugin');
+		window.clearInterval(this.syncInterval)
 
 		await this.loadSettings();
 		this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
@@ -52,6 +57,7 @@ export default class VoiceNotesPlugin extends Plugin {
 	}
 
 	onunload() {
+		window.clearInterval(this.syncInterval)
 		console.log('unloading Voice Notes plugin');
 	}
 
@@ -121,6 +127,17 @@ export default class VoiceNotesPlugin extends Plugin {
 				await this.fs.write(recordingPath, note)
 			}
 		}
+
+		window.clearInterval(this.syncInterval)
+		this.syncInterval = window.setInterval(() => {
+			this.timeSinceSync += this.ONE_SECOND
+
+			if (this.timeSinceSync >= this.settings.syncTimeout * 60 * 1000) {
+				this.timeSinceSync = 0
+				this.sync()
+			}
+		}, this.ONE_SECOND)
+
 	}
 }
 
