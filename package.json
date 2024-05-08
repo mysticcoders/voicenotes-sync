@@ -1,11 +1,11 @@
 {
   "name": "voicenotes-sync",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "A plugin for syncing VoiceNotes sync data into notes",
   "main": "main.js",
   "scripts": {
     "dev": "rollup --config rollup.config.js --bundleConfigAsCjs -w",
-    "build": "rollup --config rollup.config.js --environment BUILD:production"
+    "build": "rollup --config rollup.config.js --bundleConfigAsCjs --environment BUILD:production"
   },
   "keywords": [],
   "author": "",
