@@ -87,7 +87,10 @@ export default class VoiceNotesPlugin extends Plugin {
 					new Notice(`Unable to grab voice recording with id: ${recording.id}`)
 					continue
 				}
-				const recordingPath = `${voiceNotesDir}/${recording.title}.md`
+
+				let title = recording.title
+				title = title.replace(/[^A-Za-z0-9\s]/gi, ' ')
+				const recordingPath = `${voiceNotesDir}/${title}.md`
 
 				// if (this.fs.exists(recordingPath)) {
 				// 	// TODO this should probably check the updated_at and we should save this in metadata too
