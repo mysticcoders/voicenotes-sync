@@ -73,8 +73,8 @@ export default class VoiceNotesPlugin extends Plugin {
 		this.vnApi = new VoiceNotesApi({});
 		this.vnApi.token = this.settings.token
 
-		if (!this.fs.exists("voicenotes")) {
-			this.fs.mkdir("voicenotes")
+		if (!await this.fs.exists("voicenotes")) {
+			await this.fs.mkdir("voicenotes")
 		}
 
 		const recordings = await this.vnApi.getRecordings()
@@ -89,7 +89,7 @@ export default class VoiceNotesPlugin extends Plugin {
 				}
 
 				let title = recording.title
-				title = title.replace(/[^A-Za-z0-9\s]/gi, ' ')
+				title = title.replace(/[^\w\s]/gi, ' ')
 				const recordingPath = `${voiceNotesDir}/${title}.md`
 
 				// if (this.fs.exists(recordingPath)) {
@@ -147,6 +147,7 @@ export default class VoiceNotesPlugin extends Plugin {
 class VoiceNotesSettingTab extends PluginSettingTab {
 	plugin: VoiceNotesPlugin;
 	vnApi: VoiceNotesApi;
+	password: string;
 
 	constructor(app: App, plugin: VoiceNotesPlugin) {
 		super(app, plugin);
@@ -177,7 +178,7 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 					.setPlaceholder('Password')
 					.setValue(this.plugin.settings.password)
 					.onChange(async (value) => {
-						this.plugin.settings.password = value;
+						this.password = value;
 						await this.plugin.saveSettings();
 					}));
 
@@ -189,9 +190,12 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 
 						this.plugin.settings.token = await this.vnApi.login({
 							username: this.plugin.settings.username,
-							password: this.plugin.settings.password
+							password: this.password
 						})
+						new Notice("Login to voicenotes.com was successful")
+						this.plugin.settings.password = null
 						await this.plugin.saveSettings()
+						await this.display()
 					})
 				)
 		}
@@ -216,9 +220,12 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 				.addButton(button => button
 					.setButtonText("Logout")
 					.onClick(async (evt) => {
-
+						new Notice("Logged out of voicenotes.com")
 						this.plugin.settings.token = null
+						this.plugin.settings.password = null
+						this.password = null
 						await this.plugin.saveSettings()
+						await this.display()
 					})
 				)
 
