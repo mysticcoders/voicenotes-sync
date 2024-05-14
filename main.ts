@@ -14,6 +14,7 @@ import numeral from 'numeral'
 import VoiceNotesApi from "./voicenotes-api";
 import {capitalizeFirstLetter} from "./utils";
 import {VoiceNoteData, VoiceNoteEmail} from "./types";
+import { sanitize } from 'sanitize-filename-ts';
 
 declare global {
 	interface Window {
@@ -89,7 +90,7 @@ export default class VoiceNotesPlugin extends Plugin {
 				}
 
 				let title = recording.title
-				title = title.replace(/[^\w\s]/gi, ' ')
+				title = sanitize(title)
 				const recordingPath = `${voiceNotesDir}/${title}.md`
 
 				// if (this.fs.exists(recordingPath)) {

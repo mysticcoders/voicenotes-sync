@@ -368,10 +368,24 @@ rollup@^4.17.2:
     "@rollup/rollup-win32-x64-msvc" "4.17.2"
     fsevents "~2.3.2"
 
+sanitize-filename-ts@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/sanitize-filename-ts/-/sanitize-filename-ts-1.0.2.tgz#831b0f727a5a8f2cadc0a2cfd65353936b1d5d99"
+  integrity sha512-bON2VOJoappmaBHlnxvBNk5R7HkUAsirf5m1M5Kz15uZykDGbHfGPCQNcEQKR8HrQhgh9CmQ6Xe9y71yM9ywkw==
+  dependencies:
+    truncate-utf8-bytes "^1.0.2"
+
 supports-preserve-symlinks-flag@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/supports-preserve-symlinks-flag/-/supports-preserve-symlinks-flag-1.0.0.tgz#6eda4bd344a3c94aea376d4cc31bc77311039e09"
   integrity sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==
+
+truncate-utf8-bytes@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/truncate-utf8-bytes/-/truncate-utf8-bytes-1.0.2.tgz#405923909592d56f78a5818434b0b78489ca5f2b"
+  integrity sha512-95Pu1QXQvruGEhv62XCMO3Mm90GscOCClvrIUwCM0PYOXK3kaF3l3sIHxx71ThJfcbM2O5Au6SO3AWCSEfW4mQ==
+  dependencies:
+    utf8-byte-length "^1.0.1"
 
 tslib@^2.6.2:
   version "2.6.2"
@@ -387,6 +401,11 @@ undici-types@~5.26.4:
   version "5.26.5"
   resolved "https://registry.yarnpkg.com/undici-types/-/undici-types-5.26.5.tgz#bcd539893d00b56e964fd2657a4866b221a65617"
   integrity sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==
+
+utf8-byte-length@^1.0.1:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/utf8-byte-length/-/utf8-byte-length-1.0.4.tgz#f45f150c4c66eee968186505ab93fcbb8ad6bf61"
+  integrity sha512-4+wkEYLBbWxqTahEsWrhxepcoVOJ+1z5PGIjPZxRkytcdSUaNjIjBM7Xn8E+pdSuV7SzvWovBFA54FO0JSoqhA==
 
 wrappy@1:
   version "1.0.2"
