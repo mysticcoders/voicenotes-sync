@@ -1,4 +1,4 @@
-## Voicenotes Sync for Obsidian
+## Voicenotes Sync
 
 API is unpublished. Through a bit of checking in Developer Tools easy enough to find and develop against. Hopefully 
 the developers of this really useful tool will publish an API doc soon.
@@ -14,7 +14,7 @@ Two methods and the first one is easier:
 
 #### Method 1
 - Enable community plugins and install Obsidian42 - BRAT
-- Go to settings and under Beta Plugin List click "Add Beta plugin" and type mysticcoders/voicenotes-plugin
+- Go to settings and under Beta Plugin List click "Add Beta plugin" and type mysticcoders/voicenotes-sync
 
 #### Method 2
 - Create an `voicenotes-sync` folder under `.obsidian/plugins` in your vault. Add the

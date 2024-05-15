@@ -1,9 +1,9 @@
 {
 	"id": "voicenotes-sync",
-	"name": "VoiceNotes Sync",
-	"version": "0.0.6",
-	"minAppVersion": "0.9.12",
-	"description": "Synchronize your notes in Voicenotes.com to Obsidian folder",
+	"name": "Voicenotes Sync",
+	"version": "0.0.7",
+	"minAppVersion": "1.5.12",
+	"description": "Synchronize your notes from Voicenotes.com",
 	"author": "Andrew Lombardi",
 	"authorUrl": "https://mysticcoders.com",
 	"isDesktopOnly": false

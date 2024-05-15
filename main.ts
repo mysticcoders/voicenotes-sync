@@ -1,19 +1,16 @@
 import {
 	App,
-	Editor,
 	Notice,
 	Plugin,
 	PluginSettingTab,
 	Setting,
-	MarkdownView,
 	PluginManifest,
 	DataAdapter
 } from 'obsidian';
-import type moment from "moment"
-import numeral from 'numeral'
+import {moment} from "obsidian"
 import VoiceNotesApi from "./voicenotes-api";
 import {capitalizeFirstLetter} from "./utils";
-import {VoiceNoteData, VoiceNoteEmail} from "./types";
+import {VoiceNoteEmail} from "./types";
 import { sanitize } from 'sanitize-filename-ts';
 
 declare global {
@@ -48,7 +45,6 @@ export default class VoiceNotesPlugin extends Plugin {
 	}
 
 	async onload() {
-		console.log('Loading Voice Notes plugin');
 		window.clearInterval(this.syncInterval)
 
 		await this.loadSettings();
@@ -59,7 +55,6 @@ export default class VoiceNotesPlugin extends Plugin {
 
 	onunload() {
 		window.clearInterval(this.syncInterval)
-		console.log('unloading Voice Notes plugin');
 	}
 
 	async loadSettings() {
@@ -97,8 +92,6 @@ export default class VoiceNotesPlugin extends Plugin {
 				// 	// TODO this should probably check the updated_at and we should save this in metadata too
 				// 	console.log(`${recordingPath} already synced, moving on`)
 				// }
-
-				console.log(`Recording Path: ${recordingPath}`)
 
 				let note = '---\n'
 				note += `duration: ${recording.duration}\n`
@@ -161,13 +154,11 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Voice Notes Settings'});
-
 		if (!this.plugin.settings.token) {
 			new Setting(containerEl)
 				.setName('Username')
 				.addText(text => text
-					.setPlaceholder('Email Address')
+					.setPlaceholder('Email address')
 					.setValue(this.plugin.settings.username)
 					.onChange(async (value) => {
 						this.plugin.settings.username = value;
@@ -187,8 +178,6 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 				.addButton(button => button
 					.setButtonText("Login")
 					.onClick(async (evt) => {
-						console.log("Login button clicks")
-
 						this.plugin.settings.token = await this.vnApi.login({
 							username: this.plugin.settings.username,
 							password: this.password
@@ -232,7 +221,7 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.addButton(button => button
-					.setButtonText("Manual Sync")
+					.setButtonText("Manual sync")
 					.onClick(async (evt) => {
 
 						await this.plugin.sync();
@@ -242,7 +231,7 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 		}
 
 		new Setting(containerEl)
-			.setName("Sync Every")
+			.setName("Sync every")
 			.setDesc("Number of minutes between syncing with VoiceNotes.com servers")
 			.addText(text => text
 				.setPlaceholder("30")
