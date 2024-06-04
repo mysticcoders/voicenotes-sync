@@ -86,3 +86,8 @@ export interface VoiceNotesMeta {
     per_page: number,
     to: number,
 }
+
+export interface VoiceNoteSignedUrl {
+    url: string,
+    expiry_time: string,
+}

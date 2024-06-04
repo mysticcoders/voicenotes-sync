@@ -5,13 +5,16 @@ import {
 	PluginSettingTab,
 	Setting,
 	PluginManifest,
-	DataAdapter
+	DataAdapter,
+	getFrontMatterInfo,
+	parseYaml, TAbstractFile,
 } from 'obsidian';
 import {moment} from "obsidian"
 import VoiceNotesApi from "./voicenotes-api";
 import {capitalizeFirstLetter} from "./utils";
 import {VoiceNoteEmail} from "./types";
 import { sanitize } from 'sanitize-filename-ts';
+import * as path from 'path';
 
 declare global {
 	interface Window {
@@ -24,10 +27,14 @@ interface VoiceNotesPluginSettings {
 	username?: string;
 	password?: string;
 	syncTimeout?: number;
+	downloadAudio?: boolean;
+	syncDirectory: string;
 }
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
-	syncTimeout: 60
+	syncTimeout: 60,
+	downloadAudio: false,
+	syncDirectory: "voicenotes",
 }
 
 export default class VoiceNotesPlugin extends Plugin {
@@ -36,6 +43,8 @@ export default class VoiceNotesPlugin extends Plugin {
 	fs: DataAdapter;
 	syncInterval : number;
 	timeSinceSync : number = 0;
+
+	syncedRecordingIds : number[];
 
 	ONE_SECOND = 1000;
 
@@ -50,6 +59,13 @@ export default class VoiceNotesPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
 
+		this.registerEvent(this.app.metadataCache.on("deleted", (deletedFile, prevCache) => {
+			if (prevCache.frontmatter?.recording_id) {
+				this.syncedRecordingIds.remove(prevCache.frontmatter?.recording_id);
+			}
+		}));
+
+		this.syncedRecordingIds = await this.getSyncedRecordingIds();
 		await this.sync();
 	}
 
@@ -65,17 +81,42 @@ export default class VoiceNotesPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
+	async getRecordingIdFromFile(text: string) : Promise<number | undefined> {
+		const frontMatter = getFrontMatterInfo(text);
+
+		if (frontMatter.exists) {
+			const yaml = parseYaml(frontMatter.frontmatter);
+			if (yaml?.recording_id) {
+				return yaml.recording_id as number;
+			}
+		}
+		return undefined
+	}
+
+	/**
+	 * Return the recording IDs that we've already synced
+	 */
+	async getSyncedRecordingIds(): Promise<number[]> {
+		const { vault } = this.app;
+
+		const markdownFiles = vault.getMarkdownFiles().filter(file => file.path.startsWith(this.settings.syncDirectory));
+
+		return (await Promise.all(
+			markdownFiles.map(async (file) => this.getRecordingIdFromFile(await vault.cachedRead(file)))
+		)).filter(recordingId => recordingId !== undefined) as number[];
+	}
+
 	async sync() {
 		this.vnApi = new VoiceNotesApi({});
 		this.vnApi.token = this.settings.token
 
-		if (!await this.fs.exists("voicenotes")) {
-			await this.fs.mkdir("voicenotes")
+		if (!await this.fs.exists(this.settings.syncDirectory)) {
+			new Notice("Creating sync directory for Voice Notes Sync plugin")
+			await this.fs.mkdir(this.settings.syncDirectory)
 		}
 
 		const recordings = await this.vnApi.getRecordings()
-
-		const voiceNotesDir = 'voicenotes'
+		const voiceNotesDir = this.settings.syncDirectory
 
 		if (recordings) {
 			for (const recording of recordings.data) {
@@ -84,21 +125,37 @@ export default class VoiceNotesPlugin extends Plugin {
 					continue
 				}
 
+				console.dir(this.syncedRecordingIds)
+				// If we've already synced it locally let's not do it again
+				if (this.syncedRecordingIds.includes(recording.recording_id)) {
+					continue;
+				}
+
 				let title = recording.title
 				title = sanitize(title)
 				const recordingPath = `${voiceNotesDir}/${title}.md`
 
-				// if (this.fs.exists(recordingPath)) {
-				// 	// TODO this should probably check the updated_at and we should save this in metadata too
-				// 	console.log(`${recordingPath} already synced, moving on`)
-				// }
-
 				let note = '---\n'
+				note += `recording_id: ${recording.recording_id}\n`
 				note += `duration: ${recording.duration}\n`
         note += `created_at: ${recording.created_at}\n`
         note += `updated_at: ${recording.updated_at}\n`
 				note += '---\n'
 
+				if (this.settings.downloadAudio) {
+					const audioPath = path.resolve(voiceNotesDir, "audio")
+					if (!await this.fs.exists(audioPath)) {
+						await this.fs.mkdir(audioPath)
+					}
+					const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id)
+
+					const outputLocationPath = path.resolve(audioPath, `${recording.recording_id}.mp3`);
+					// Download file to disk
+					await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
+
+					note += `![[${recording.recording_id}.mp3]]\n\n`
+					note += '# Transcript\n'
+				}
 				note += recording.transcript
 				note += '\n'
 				for (const creation of recording.creations) {
@@ -122,6 +179,8 @@ export default class VoiceNotesPlugin extends Plugin {
 					}
 				}
 				await this.fs.write(recordingPath, note)
+
+				this.syncedRecordingIds.push(recording.recording_id)
 			}
 		}
 
@@ -223,7 +282,8 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 				.addButton(button => button
 					.setButtonText("Manual sync")
 					.onClick(async (evt) => {
-
+						// Upon a manual sync we are going to forget about existing data so we can sync all again
+						this.plugin.syncedRecordingIds = [];
 						await this.plugin.sync();
 					})
 				)
@@ -242,5 +302,27 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 				})
 			)
 
+		new Setting(containerEl)
+			.setName("Sync directory")
+			.setDesc("Directory to sync voice notes")
+			.addText(text => text
+				.setPlaceholder("voicenotes")
+				.setValue(`${this.plugin.settings.syncDirectory}`)
+				.onChange(async (value) => {
+					this.plugin.settings.syncDirectory = value;
+					await this.plugin.saveSettings();
+				})
+			)
+
+		new Setting(containerEl)
+			.setName("Download audio")
+			.setDesc("Store and download the audio associated with the transcript")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.downloadAudio)
+				.onChange(async (value) => {
+					this.plugin.settings.downloadAudio = Boolean(value);
+					await this.plugin.saveSettings();
+				})
+			)
 	}
 }

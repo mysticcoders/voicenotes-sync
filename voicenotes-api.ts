@@ -1,5 +1,6 @@
-import {requestUrl} from "obsidian";
-import {VoiceNoteRecordings} from "./types";
+import {DataAdapter, requestUrl} from "obsidian";
+import {VoiceNoteRecordings, VoiceNoteSignedUrl} from "./types";
+import * as fs from 'fs';
 
 const VOICENOTES_API_URL = 'https://api.voicenotes.com/api'
 
@@ -38,6 +39,27 @@ export default class VoiceNotesApi {
             return null
         }
         return null
+    }
+
+    async getSignedUrl(recordingId : number): Promise<VoiceNoteSignedUrl> {
+        if (this.token) {
+            const data = await requestUrl({
+                url: `${VOICENOTES_API_URL}/recordings/${recordingId}/signed-url`, headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            })
+            return data.json as VoiceNoteSignedUrl
+        }
+        return null
+    }
+
+    async downloadFile(fs: DataAdapter, url: string, outputLocationPath: string) {
+        const response = await requestUrl({
+            url,
+        });
+        const buffer = Buffer.from(response.arrayBuffer);
+
+        await fs.writeBinary(outputLocationPath, buffer);
     }
 
     async getRecordings(): Promise<VoiceNoteRecordings> {
