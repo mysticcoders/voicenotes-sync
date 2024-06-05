@@ -7,7 +7,7 @@ import {
 	PluginManifest,
 	DataAdapter,
 	getFrontMatterInfo,
-	parseYaml, TAbstractFile,
+	parseYaml, TAbstractFile, TFile,
 } from 'obsidian';
 import {moment} from "obsidian"
 import VoiceNotesApi from "./voicenotes-api";
@@ -29,12 +29,16 @@ interface VoiceNotesPluginSettings {
 	syncTimeout?: number;
 	downloadAudio?: boolean;
 	syncDirectory: string;
+	deleteSynced: boolean;
+	reallyDeleteSynced: boolean;
 }
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
 	syncTimeout: 60,
 	downloadAudio: false,
 	syncDirectory: "voicenotes",
+	deleteSynced: false,
+	reallyDeleteSynced: false,
 }
 
 export default class VoiceNotesPlugin extends Plugin {
@@ -81,16 +85,8 @@ export default class VoiceNotesPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	async getRecordingIdFromFile(text: string) : Promise<number | undefined> {
-		const frontMatter = getFrontMatterInfo(text);
-
-		if (frontMatter.exists) {
-			const yaml = parseYaml(frontMatter.frontmatter);
-			if (yaml?.recording_id) {
-				return yaml.recording_id as number;
-			}
-		}
-		return undefined
+	async getRecordingIdFromFile(file: TFile) : Promise<number | undefined> {
+		return this.app.metadataCache.getFileCache(file)?.frontmatter?.['recording_id'];
 	}
 
 	/**
@@ -102,7 +98,7 @@ export default class VoiceNotesPlugin extends Plugin {
 		const markdownFiles = vault.getMarkdownFiles().filter(file => file.path.startsWith(this.settings.syncDirectory));
 
 		return (await Promise.all(
-			markdownFiles.map(async (file) => this.getRecordingIdFromFile(await vault.cachedRead(file)))
+			markdownFiles.map(async (file) => this.getRecordingIdFromFile(file))
 		)).filter(recordingId => recordingId !== undefined) as number[];
 	}
 
@@ -125,7 +121,6 @@ export default class VoiceNotesPlugin extends Plugin {
 					continue
 				}
 
-				console.dir(this.syncedRecordingIds)
 				// If we've already synced it locally let's not do it again
 				if (this.syncedRecordingIds.includes(recording.recording_id)) {
 					continue;
@@ -181,6 +176,12 @@ export default class VoiceNotesPlugin extends Plugin {
 				await this.fs.write(recordingPath, note)
 
 				this.syncedRecordingIds.push(recording.recording_id)
+
+				// DESTRUCTIVE action which will delete all synced recordings from server if turned on
+				// We ask twice to make sure user is doubly sure
+				if (this.settings.deleteSynced && this.settings.reallyDeleteSynced) {
+					await this.vnApi.deleteRecording(recording.recording_id)
+				}
 			}
 		}
 
@@ -324,5 +325,35 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
 			)
+
+		new Setting(containerEl)
+			.setName("Delete synced recordings")
+			.setDesc("DESTRUCTIVE action which after syncing the note locally will delete it from the voicenotes.com server.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.deleteSynced)
+				.onChange(async (value) => {
+					this.plugin.settings.deleteSynced = value;
+
+					if (!value) {
+						this.plugin.settings.reallyDeleteSynced = false;
+					}
+
+					await this.plugin.saveSettings();
+					await this.display()
+				})
+			)
+
+		if (this.plugin.settings.deleteSynced) {
+			new Setting(containerEl)
+				.setName("REALLY delete synced recordings")
+				.setDesc("We want you to be sufficiently clear that this will delete anything on voicenotes.com")
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.reallyDeleteSynced)
+					.onChange(async (value) => {
+						this.plugin.settings.reallyDeleteSynced = Boolean(value);
+						await this.plugin.saveSettings();
+					})
+				)
+		}
 	}
 }

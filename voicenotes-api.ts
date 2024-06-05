@@ -62,13 +62,42 @@ export default class VoiceNotesApi {
         await fs.writeBinary(outputLocationPath, buffer);
     }
 
-    async getRecordings(): Promise<VoiceNoteRecordings> {
+    async deleteRecording(recordingId: number): Promise<boolean> {
         if (this.token) {
             const data = await requestUrl({
-                url: `${VOICENOTES_API_URL}/recordings?page=1`, headers: {
+                url: `${VOICENOTES_API_URL}/recordings/${recordingId}`, headers: {
+                    'Authorization': `Bearer ${this.token}`
+                },
+                method: 'DELETE'
+            })
+
+            return data.status === 200
+        }
+
+        return false;
+    }
+
+    async getRecordingsFromLink(link: string): Promise<VoiceNoteRecordings> {
+        if (this.token) {
+            const data = await requestUrl({
+                url: link, headers: {
                     'Authorization': `Bearer ${this.token}`
                 }
             })
+
+            return data.json as VoiceNoteRecordings
+        }
+        return null
+    }
+
+    async getRecordings(): Promise<VoiceNoteRecordings> {
+        if (this.token) {
+            const data = await requestUrl({
+                url: `${VOICENOTES_API_URL}/recordings`, headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            })
+            console.dir(data.json)
             return data.json as VoiceNoteRecordings
         }
         return null
