@@ -114,6 +114,7 @@ export default class VoiceNotesPlugin extends Plugin {
 		const recordings = await this.vnApi.getRecordings()
 		const voiceNotesDir = this.settings.syncDirectory
 
+		console.log(`voiceNotesDir: ${voiceNotesDir}`)
 		if (recordings) {
 			for (const recording of recordings.data) {
 				if (!recording.title) {
@@ -130,6 +131,7 @@ export default class VoiceNotesPlugin extends Plugin {
 				title = sanitize(title)
 				const recordingPath = `${voiceNotesDir}/${title}.md`
 
+				console.log(`recordingPath: ${recordingPath}`)
 				let note = '---\n'
 				note += `recording_id: ${recording.recording_id}\n`
 				note += `duration: ${recording.duration}\n`
@@ -139,6 +141,8 @@ export default class VoiceNotesPlugin extends Plugin {
 
 				if (this.settings.downloadAudio) {
 					const audioPath = path.resolve(voiceNotesDir, "audio")
+
+					console.log(`audioPath: ${audioPath}`)
 					if (!await this.fs.exists(audioPath)) {
 						await this.fs.mkdir(audioPath)
 					}
@@ -173,6 +177,7 @@ export default class VoiceNotesPlugin extends Plugin {
 						note += '\n'
 					}
 				}
+				console.log(`Writing ${recording.recording_id} to ${recordingPath}`)
 				await this.fs.write(recordingPath, note)
 
 				this.syncedRecordingIds.push(recording.recording_id)
