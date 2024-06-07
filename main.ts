@@ -6,8 +6,7 @@ import {
 	Setting,
 	PluginManifest,
 	DataAdapter,
-	getFrontMatterInfo,
-	parseYaml, TAbstractFile, TFile,
+	normalizePath, TFile,
 } from 'obsidian';
 import {moment} from "obsidian"
 import VoiceNotesApi from "./voicenotes-api";
@@ -106,13 +105,13 @@ export default class VoiceNotesPlugin extends Plugin {
 		this.vnApi = new VoiceNotesApi({});
 		this.vnApi.token = this.settings.token
 
-		if (!await this.fs.exists(this.settings.syncDirectory)) {
+		const voiceNotesDir = normalizePath(this.settings.syncDirectory)
+		if (!await this.app.vault.adapter.exists(voiceNotesDir)) {
 			new Notice("Creating sync directory for Voice Notes Sync plugin")
-			await this.fs.mkdir(this.settings.syncDirectory)
+			await this.app.vault.createFolder(voiceNotesDir)
 		}
 
 		const recordings = await this.vnApi.getRecordings()
-		const voiceNotesDir = this.settings.syncDirectory
 
 		console.log(`voiceNotesDir: ${voiceNotesDir}`)
 		if (recordings) {
@@ -129,7 +128,7 @@ export default class VoiceNotesPlugin extends Plugin {
 
 				let title = recording.title
 				title = sanitize(title)
-				const recordingPath = `${voiceNotesDir}/${title}.md`
+				const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`)
 
 				console.log(`recordingPath: ${recordingPath}`)
 				let note = '---\n'
@@ -140,7 +139,7 @@ export default class VoiceNotesPlugin extends Plugin {
 				note += '---\n'
 
 				if (this.settings.downloadAudio) {
-					const audioPath = path.resolve(this.app.vault.getRoot().path, voiceNotesDir, "audio")
+					const audioPath = normalizePath(`${voiceNotesDir}/audio`)
 
 					console.log(`audioPath: ${audioPath}`)
 					if (!await this.fs.exists(audioPath)) {
@@ -148,7 +147,7 @@ export default class VoiceNotesPlugin extends Plugin {
 					}
 					const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id)
 
-					const outputLocationPath = path.resolve(audioPath, `${recording.recording_id}.mp3`);
+					const outputLocationPath = normalizePath(`${audioPath}/${recording.recording_id}.mp3`);
 					// Download file to disk
 					await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
 
@@ -178,7 +177,12 @@ export default class VoiceNotesPlugin extends Plugin {
 					}
 				}
 				console.log(`Writing ${recording.recording_id} to ${recordingPath}`)
-				await this.fs.write(recordingPath, note)
+
+				if (await this.app.vault.adapter.exists(recordingPath)) {
+					await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath), note)
+				} else {
+					await this.app.vault.create(recordingPath, note)
+				}
 
 				this.syncedRecordingIds.push(recording.recording_id)
 
