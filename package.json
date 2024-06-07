@@ -1,10 +1,11 @@
 {
   "name": "voicenotes-sync",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "A plugin for syncing Voicenotes.com data into notes",
   "main": "main.js",
   "scripts": {
     "dev": "rollup --config rollup.config.js --bundleConfigAsCjs -w",
+    "version": "node version-bump.mjs && git add manifest.json versions.json",
     "build": "rollup --config rollup.config.js --bundleConfigAsCjs --environment BUILD:production"
   },
   "keywords": [],

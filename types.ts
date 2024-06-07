@@ -60,6 +60,11 @@ export interface VoiceNoteRecordings {
     meta: VoiceNotesMeta,
 }
 
+export interface VoiceNoteTag {
+    id: number,
+    name: string,
+}
+
 export interface VoiceNoteEntry {
     created_at: string,
     creations: VoiceNoteCreation[],
@@ -67,7 +72,7 @@ export interface VoiceNoteEntry {
     id: number,
     public_slug?: string,
     recording_id: number,
-    tags: [],
+    tags: VoiceNoteTag[],
     title: string,
     transcript: string,
     updated_at: string

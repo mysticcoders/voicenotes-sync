@@ -69,7 +69,7 @@ export default class VoiceNotesPlugin extends Plugin {
 		}));
 
 		this.syncedRecordingIds = await this.getSyncedRecordingIds();
-		await this.sync();
+		await this.sync(this.syncedRecordingIds.length === 0);
 	}
 
 	onunload() {
@@ -101,7 +101,7 @@ export default class VoiceNotesPlugin extends Plugin {
 		)).filter(recordingId => recordingId !== undefined) as number[];
 	}
 
-	async sync() {
+	async sync(fullSync: boolean = false) {
 		this.vnApi = new VoiceNotesApi({});
 		this.vnApi.token = this.settings.token
 
@@ -111,9 +111,20 @@ export default class VoiceNotesPlugin extends Plugin {
 			await this.app.vault.createFolder(voiceNotesDir)
 		}
 
-		const recordings = await this.vnApi.getRecordings()
+		let recordings = await this.vnApi.getRecordings()
 
-		console.log(`voiceNotesDir: ${voiceNotesDir}`)
+		if (fullSync && recordings.links.next) {
+			let nextPage = recordings.links.next
+
+			do {
+				console.debug(`Performing a full sync ${nextPage}`)
+
+				let moreRecordings = await this.vnApi.getRecordingsFromLink(nextPage)
+				recordings.data.push(...moreRecordings.data);
+        nextPage = moreRecordings.links.next;
+			} while(nextPage)
+		}
+
 		if (recordings) {
 			for (const recording of recordings.data) {
 				if (!recording.title) {
@@ -130,20 +141,22 @@ export default class VoiceNotesPlugin extends Plugin {
 				title = sanitize(title)
 				const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`)
 
-				console.log(`recordingPath: ${recordingPath}`)
 				let note = '---\n'
 				note += `recording_id: ${recording.recording_id}\n`
 				note += `duration: ${recording.duration}\n`
         note += `created_at: ${recording.created_at}\n`
         note += `updated_at: ${recording.updated_at}\n`
+
+				if (recording.tags.length > 0) {
+					note += `tags: ${recording.tags.map(tag => tag.name).join(",")}\n`
+				}
 				note += '---\n'
 
 				if (this.settings.downloadAudio) {
 					const audioPath = normalizePath(`${voiceNotesDir}/audio`)
 
-					console.log(`audioPath: ${audioPath}`)
-					if (!await this.fs.exists(audioPath)) {
-						await this.fs.mkdir(audioPath)
+					if (!await this.app.vault.adapter.exists(audioPath)) {
+						await this.app.vault.createFolder(audioPath)
 					}
 					const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id)
 
@@ -176,7 +189,7 @@ export default class VoiceNotesPlugin extends Plugin {
 						note += '\n'
 					}
 				}
-				console.log(`Writing ${recording.recording_id} to ${recordingPath}`)
+				console.debug(`Writing ${recording.recording_id} to ${recordingPath}`)
 
 				if (await this.app.vault.adapter.exists(recordingPath)) {
 					await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath), note)
@@ -294,7 +307,7 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 					.onClick(async (evt) => {
 						// Upon a manual sync we are going to forget about existing data so we can sync all again
 						this.plugin.syncedRecordingIds = [];
-						await this.plugin.sync();
+						await this.plugin.sync(true);
 					})
 				)
 

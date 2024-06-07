@@ -97,7 +97,6 @@ export default class VoiceNotesApi {
                     'Authorization': `Bearer ${this.token}`
                 }
             })
-            console.dir(data.json)
             return data.json as VoiceNoteRecordings
         }
         return null
