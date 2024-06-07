@@ -140,7 +140,7 @@ export default class VoiceNotesPlugin extends Plugin {
 				note += '---\n'
 
 				if (this.settings.downloadAudio) {
-					const audioPath = path.resolve(voiceNotesDir, "audio")
+					const audioPath = path.resolve(this.app.vault.getRoot().path, voiceNotesDir, "audio")
 
 					console.log(`audioPath: ${audioPath}`)
 					if (!await this.fs.exists(audioPath)) {
