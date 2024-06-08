@@ -10,7 +10,7 @@ import {
 } from 'obsidian';
 import {moment} from "obsidian"
 import VoiceNotesApi from "./voicenotes-api";
-import {capitalizeFirstLetter} from "./utils";
+import {capitalizeFirstLetter, isAlphaNumeric} from "./utils";
 import {VoiceNoteEmail} from "./types";
 import { sanitize } from 'sanitize-filename-ts';
 import * as path from 'path';
@@ -30,6 +30,7 @@ interface VoiceNotesPluginSettings {
 	syncDirectory: string;
 	deleteSynced: boolean;
 	reallyDeleteSynced: boolean;
+	todoTag: string;
 }
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
@@ -38,6 +39,7 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
 	syncDirectory: "voicenotes",
 	deleteSynced: false,
 	reallyDeleteSynced: false,
+	todoTag: "",
 }
 
 export default class VoiceNotesPlugin extends Plugin {
@@ -125,6 +127,7 @@ export default class VoiceNotesPlugin extends Plugin {
 			} while(nextPage)
 		}
 
+		// console.dir(recordings)
 		if (recordings) {
 			for (const recording of recordings.data) {
 				if (!recording.title) {
@@ -176,6 +179,12 @@ export default class VoiceNotesPlugin extends Plugin {
 						const creationData = creation.content.data as VoiceNoteEmail
 						note += `**Subject:** ${creationData.subject}\n\n`
 						note += `${creationData.body}\n`
+					} else if (creation.type === 'todo') {
+						const creationData = creation.content.data as string[]
+
+						if (Array.isArray(creationData)) {
+							note += creationData.map(data => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n')
+						}
 					} else if (creation.type !== 'tweet') {
 						const creationData = creation.content.data as string[]
 
@@ -264,10 +273,13 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 							username: this.plugin.settings.username,
 							password: this.password
 						})
-						new Notice("Login to voicenotes.com was successful")
+
 						this.plugin.settings.password = null
-						await this.plugin.saveSettings()
-						await this.display()
+						if (this.plugin.settings.token) {
+							new Notice("Login to voicenotes.com was successful")
+							await this.plugin.saveSettings()
+							await this.display()
+						}
 					})
 				)
 		}
@@ -333,6 +345,18 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 				.setValue(`${this.plugin.settings.syncDirectory}`)
 				.onChange(async (value) => {
 					this.plugin.settings.syncDirectory = value;
+					await this.plugin.saveSettings();
+				})
+			)
+
+		new Setting(containerEl)
+			.setName("Add a tag to todos")
+			.setDesc("When syncing a note add an optional tag to the todo")
+			.addText(text => text
+				.setPlaceholder("TODO")
+				.setValue(this.plugin.settings.todoTag)
+				.onChange(async (value) => {
+					this.plugin.settings.todoTag = value;
 					await this.plugin.saveSettings();
 				})
 			)
