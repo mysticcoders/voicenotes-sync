@@ -161,11 +161,13 @@ export default class VoiceNotesPlugin extends Plugin {
 					if (!await this.app.vault.adapter.exists(audioPath)) {
 						await this.app.vault.createFolder(audioPath)
 					}
-					const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id)
-
 					const outputLocationPath = normalizePath(`${audioPath}/${recording.recording_id}.mp3`);
-					// Download file to disk
-					await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
+
+					if (!await this.app.vault.adapter.exists(outputLocationPath)) {
+						// Get unique audio download URL and download file to disk
+						const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id)
+						await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
+					}
 
 					note += `![[${recording.recording_id}.mp3]]\n\n`
 					note += '# Transcript\n'
@@ -185,18 +187,24 @@ export default class VoiceNotesPlugin extends Plugin {
 						if (Array.isArray(creationData)) {
 							note += creationData.map(data => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n')
 						}
-					} else if (creation.type !== 'tweet') {
+					} else if (creation.type !== 'tweet' && creation.type !== 'summary') {
 						const creationData = creation.content.data as string[]
 
 						if (Array.isArray(creationData)) {
-							note += "- "
-							note += creationData.join("\n- ")
+							note += creationData.map(data => `- ${data}`).join('\n')
 						}
+
+						note += '\n'
 					} else {
 						const creationData = creation.content.data as string
 						note += creationData
 						note += '\n'
 					}
+				}
+
+				if (recording.related_notes.length > 0) {
+					note += '\n## Related Notes\n'
+					note += recording.related_notes.map(relatedNote => `- [[${sanitize(relatedNote.title)}]]`).join('\n')
 				}
 				console.debug(`Writing ${recording.recording_id} to ${recordingPath}`)
 

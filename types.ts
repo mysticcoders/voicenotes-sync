@@ -65,6 +65,14 @@ export interface VoiceNoteTag {
     name: string,
 }
 
+export interface RelatedVoiceNote {
+    id: number,
+    recording_id: number,
+    title: string,
+    transcript: string,
+    created_at: string,
+}
+
 export interface VoiceNoteEntry {
     created_at: string,
     creations: VoiceNoteCreation[],
@@ -75,7 +83,8 @@ export interface VoiceNoteEntry {
     tags: VoiceNoteTag[],
     title: string,
     transcript: string,
-    updated_at: string
+    updated_at: string,
+    related_notes: RelatedVoiceNote[],
 }
 
 export interface VoiceNotesLinks {
