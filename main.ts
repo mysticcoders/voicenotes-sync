@@ -6,14 +6,13 @@ import {
 	Setting,
 	PluginManifest,
 	DataAdapter,
-	normalizePath, TFile,
+	normalizePath, TFile, Editor,
 } from 'obsidian';
 import {moment} from "obsidian"
 import VoiceNotesApi from "./voicenotes-api";
-import {capitalizeFirstLetter, isAlphaNumeric} from "./utils";
+import {capitalizeFirstLetter, isToday} from "./utils";
 import {VoiceNoteEmail} from "./types";
 import { sanitize } from 'sanitize-filename-ts';
-import * as path from 'path';
 
 declare global {
 	interface Window {
@@ -64,6 +63,28 @@ export default class VoiceNotesPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
 
+
+		this.addCommand({
+			id: 'insert-voicenotes-from-today',
+			name: 'Insert Today\'s Voicenotes',
+			editorCallback: async (editor: Editor) => {
+				if (!this.settings.token) {
+					new Notice('No access available, please login in plugin settings')
+					return
+				}
+
+				const todaysRecordings = await this.getTodaysSyncedRecordings()
+
+				if (todaysRecordings.length === 0) {
+					new Notice("No recordings from today found")
+					return
+				}
+
+				let listOfToday = todaysRecordings.map(filename => `- [[${filename}]]`).join('\n')
+				editor.replaceSelection(listOfToday)
+			}
+		});
+
 		this.registerEvent(this.app.metadataCache.on("deleted", (deletedFile, prevCache) => {
 			if (prevCache.frontmatter?.recording_id) {
 				this.syncedRecordingIds.remove(prevCache.frontmatter?.recording_id);
@@ -75,6 +96,7 @@ export default class VoiceNotesPlugin extends Plugin {
 	}
 
 	onunload() {
+		this.syncedRecordingIds = []
 		window.clearInterval(this.syncInterval)
 	}
 
@@ -90,6 +112,10 @@ export default class VoiceNotesPlugin extends Plugin {
 		return this.app.metadataCache.getFileCache(file)?.frontmatter?.['recording_id'];
 	}
 
+	async isRecordingFromToday(file: TFile) : Promise<boolean> {
+		return isToday(await this.app.metadataCache.getFileCache(file)?.frontmatter?.['created_at']);
+	}
+
 	/**
 	 * Return the recording IDs that we've already synced
 	 */
@@ -101,6 +127,16 @@ export default class VoiceNotesPlugin extends Plugin {
 		return (await Promise.all(
 			markdownFiles.map(async (file) => this.getRecordingIdFromFile(file))
 		)).filter(recordingId => recordingId !== undefined) as number[];
+	}
+
+	async getTodaysSyncedRecordings(): Promise<string[]> {
+		const { vault } = this.app;
+
+		const markdownFiles = vault.getMarkdownFiles().filter(file => file.path.startsWith(this.settings.syncDirectory));
+
+		return (await Promise.all(
+			markdownFiles.map(async (file) => await this.isRecordingFromToday(file) ? file.basename : undefined)
+		)).filter(filename => filename !== undefined) as string[];
 	}
 
 	async sync(fullSync: boolean = false) {
