@@ -12,6 +12,24 @@ transcript and any AI generated summaries or actions become sections in the note
 - Optional mode to delete synced notes from the voicenotes.com server
   - Destructive action which requires double opt-in toggles
 
+### Login via Apple, Google, Twitter (X)
+Steps to login with the above services (quite manual but doable).
+
+1. Open up voicenotes.com in a browser like Chrome
+2. After logging in open up Developer Tools
+3. Navigate to the "Network" tab
+4. Click on Fetch/XHR to see those calls specifically
+5. Hit refresh on the voicenotes.com page
+6. One of the entries should say "me" click on it and navigate to the Headers section
+7. Scroll down to "Request Headers" and find the line that says "Authorization"
+8. The right side of this entry will say "Bearer x" where x is a longish string of text. This is your authorization / login key
+9. Copy that value for the next step
+
+## Back in Obsidian
+1. Enter the token into the "Auth Token" field in settings
+4. Click Login with Token
+
+
 ### Installation
 The VoiceNotes.com Sync Plugin is available in the Obsidian Community Plugins area.
 

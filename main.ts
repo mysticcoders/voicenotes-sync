@@ -323,6 +323,35 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 							new Notice("Login to voicenotes.com was successful")
 							await this.plugin.saveSettings()
 							await this.display()
+						} else {
+							new Notice("Login to voicenotes.com was unsuccessful")
+						}
+					})
+				)
+
+			new Setting(containerEl)
+				.setName('Auth Token')
+				.addText(text => text
+					.setPlaceholder('12345|abcdefghijklmnopqrstuvwxyz')
+					.setValue(this.plugin.settings.token)
+					.onChange(async (value) => {
+						this.plugin.settings.token = value;
+						await this.plugin.saveSettings();
+					}));
+			new Setting(containerEl)
+				.addButton(button => button
+					.setButtonText("Login with token")
+					.onClick(async (evt) => {
+						this.vnApi.setToken(this.plugin.settings.token)
+						const response = await this.vnApi.getUserInfo()
+						this.plugin.settings.password = null
+
+						if (response) {
+							new Notice("Login to voicenotes.com was successful")
+							await this.plugin.saveSettings()
+							await this.display()
+						} else {
+							new Notice("Login to voicenotes.com was unsuccessful")
 						}
 					})
 				)
@@ -358,8 +387,16 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 				)
 
 			new Setting(containerEl)
+				.setName("Force Sync")
+				.setDesc("Manual synchronization -- only use the overwrite manual sync if you're ok with overwriting already synced notes")
 				.addButton(button => button
 					.setButtonText("Manual sync")
+					.onClick(async (evt) => {
+						await this.plugin.sync();
+					})
+				)
+				.addButton(button => button
+					.setButtonText("Manual sync (overwrite)")
 					.onClick(async (evt) => {
 						// Upon a manual sync we are going to forget about existing data so we can sync all again
 						this.plugin.syncedRecordingIds = [];
