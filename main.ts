@@ -392,15 +392,19 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 				.addButton(button => button
 					.setButtonText("Manual sync")
 					.onClick(async (evt) => {
+						new Notice("Performing manual synchronization without overwriting existing work.")
 						await this.plugin.sync();
+						new Notice("Manual synchronization has completed.")
 					})
 				)
 				.addButton(button => button
 					.setButtonText("Manual sync (overwrite)")
 					.onClick(async (evt) => {
 						// Upon a manual sync we are going to forget about existing data so we can sync all again
+						new Notice("Performing manual synchronization and overwriting all notes.")
 						this.plugin.syncedRecordingIds = [];
 						await this.plugin.sync(true);
+						new Notice("Manual synchronization with overwrite has completed.")
 					})
 				)
 
