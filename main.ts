@@ -30,6 +30,8 @@ interface VoiceNotesPluginSettings {
 	deleteSynced: boolean;
 	reallyDeleteSynced: boolean;
 	todoTag: string;
+	prependDateToTitle: boolean;
+	prependDateFormat: string;
 }
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
@@ -39,6 +41,8 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
 	deleteSynced: false,
 	reallyDeleteSynced: false,
 	todoTag: "",
+	prependDateToTitle: false,
+	prependDateFormat: "YYYY-MM-DD"
 }
 
 export default class VoiceNotesPlugin extends Plugin {
@@ -116,6 +120,11 @@ export default class VoiceNotesPlugin extends Plugin {
 		return isToday(await this.app.metadataCache.getFileCache(file)?.frontmatter?.['created_at']);
 	}
 
+	sanitizedTitle(title: string, created_at: string) : string {
+		let generatedTitle = this.settings.prependDateToTitle ? `${moment(created_at).format(this.settings.prependDateFormat)} ${title}` : title
+		return sanitize(generatedTitle)
+	}
+
 	/**
 	 * Return the recording IDs that we've already synced
 	 */
@@ -176,8 +185,7 @@ export default class VoiceNotesPlugin extends Plugin {
 					continue;
 				}
 
-				let title = recording.title
-				title = sanitize(title)
+				const title = this.sanitizedTitle(recording.title, recording.created_at)
 				const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`)
 
 				let note = '---\n'
@@ -240,7 +248,7 @@ export default class VoiceNotesPlugin extends Plugin {
 
 				if (recording.related_notes.length > 0) {
 					note += '\n## Related Notes\n'
-					note += recording.related_notes.map(relatedNote => `- [[${sanitize(relatedNote.title)}]]`).join('\n')
+					note += recording.related_notes.map(relatedNote => `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`).join('\n')
 				}
 				console.debug(`Writing ${recording.recording_id} to ${recordingPath}`)
 
@@ -453,6 +461,18 @@ class VoiceNotesSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.downloadAudio)
 				.onChange(async (value) => {
 					this.plugin.settings.downloadAudio = Boolean(value);
+					await this.plugin.saveSettings();
+				})
+			)
+
+
+		new Setting(containerEl)
+			.setName("Prepend Date to Note Title")
+			.setDesc("Adding the dates to the file names of all synced notes")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.prependDateToTitle)
+				.onChange(async (value) => {
+					this.plugin.settings.prependDateToTitle = value;
 					await this.plugin.saveSettings();
 				})
 			)
