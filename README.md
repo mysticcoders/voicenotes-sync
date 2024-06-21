@@ -1,9 +1,13 @@
 ## Voicenotes Sync
 Plugin offers the ability to sync down your thoughts an ideas from the voicenotes.com online service. The service
-uses an API key which the plugin can grab post login (if using email and password or use the Login via Apple, Google, Twitter (X) instructions below) and we do not save anything but the username in the settings file.
+uses an API key which the plugin can grab post login (if using email and password or use the Login via Apple, Google, 
+Twitter (X) instructions below) and we do not save anything but the username in the settings file.
 
 Through the plugin settings one can customize the sync directory and frequency, download the audio file used in the 
 transcript and any AI generated summaries or actions become sections in the note text.
+
+### Signup
+You can signup using my referral link if you'd like: [VoiceNotes.com Signup with Referral](https://voicenotes.com/?via=andrew-lombardi).
 
 ### Features
 - Automatically sync data based on configurable minutes from VoiceNotes.com
