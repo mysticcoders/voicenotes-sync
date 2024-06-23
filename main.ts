@@ -1,9 +1,9 @@
-import {App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile,} from 'obsidian';
+import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile, } from 'obsidian';
 import VoiceNotesApi from "./voicenotes-api";
-import {capitalizeFirstLetter, isToday} from "./utils";
-import {VoiceNoteEmail} from "./types";
-import {sanitize} from 'sanitize-filename-ts';
-import {VoiceNotesSettingTab} from "./settings";
+import { capitalizeFirstLetter, isToday } from "./utils";
+import { VoiceNoteEmail } from "./types";
+import { sanitize } from 'sanitize-filename-ts';
+import { VoiceNotesSettingTab } from "./settings";
 
 declare global {
 	interface Window {
@@ -18,6 +18,7 @@ interface VoiceNotesPluginSettings {
 	automaticSync: boolean;
 	syncTimeout?: number;
 	downloadAudio?: boolean;
+	keepTodos: boolean;
 	syncDirectory: string;
 	deleteSynced: boolean;
 	reallyDeleteSynced: boolean;
@@ -30,6 +31,7 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
 	automaticSync: true,
 	syncTimeout: 60,
 	downloadAudio: false,
+	keepTodos: true,
 	syncDirectory: "voicenotes",
 	deleteSynced: false,
 	reallyDeleteSynced: false,
@@ -42,10 +44,10 @@ export default class VoiceNotesPlugin extends Plugin {
 	settings: VoiceNotesPluginSettings;
 	vnApi: VoiceNotesApi;
 	fs: DataAdapter;
-	syncInterval : number;
-	timeSinceSync : number = 0;
+	syncInterval: number;
+	timeSinceSync: number = 0;
 
-	syncedRecordingIds : number[];
+	syncedRecordingIds: number[];
 
 	ONE_SECOND = 1000;
 
@@ -111,15 +113,15 @@ export default class VoiceNotesPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	async getRecordingIdFromFile(file: TFile) : Promise<number | undefined> {
+	async getRecordingIdFromFile(file: TFile): Promise<number | undefined> {
 		return this.app.metadataCache.getFileCache(file)?.frontmatter?.['recording_id'];
 	}
 
-	async isRecordingFromToday(file: TFile) : Promise<boolean> {
+	async isRecordingFromToday(file: TFile): Promise<boolean> {
 		return isToday(await this.app.metadataCache.getFileCache(file)?.frontmatter?.['created_at']);
 	}
 
-	sanitizedTitle(title: string, created_at: string) : string {
+	sanitizedTitle(title: string, created_at: string): string {
 		let generatedTitle = this.settings.prependDateToTitle ? `${moment(created_at).format(this.settings.prependDateFormat)} ${title}` : title
 		return sanitize(generatedTitle)
 	}
@@ -169,8 +171,8 @@ export default class VoiceNotesPlugin extends Plugin {
 
 				let moreRecordings = await this.vnApi.getRecordingsFromLink(nextPage)
 				recordings.data.push(...moreRecordings.data);
-        nextPage = moreRecordings.links.next;
-			} while(nextPage)
+				nextPage = moreRecordings.links.next;
+			} while (nextPage)
 		}
 
 		// console.dir(recordings)
@@ -190,11 +192,17 @@ export default class VoiceNotesPlugin extends Plugin {
 				const title = this.sanitizedTitle(recording.title, recording.created_at)
 				const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`)
 
+				// Read file if it exists
+				let existingContent = "";
+				if (await this.app.vault.adapter.exists(recordingPath)) {
+					existingContent = await this.app.vault.read(this.app.vault.getFileByPath(recordingPath));
+				}
+
 				let note = '---\n'
 				note += `recording_id: ${recording.recording_id}\n`
 				note += `duration: ${recording.duration}\n`
-        note += `created_at: ${recording.created_at}\n`
-        note += `updated_at: ${recording.updated_at}\n`
+				note += `created_at: ${recording.created_at}\n`
+				note += `updated_at: ${recording.updated_at}\n`
 
 				if (recording.tags.length > 0) {
 					note += `tags: ${recording.tags.map(tag => tag.name).join(",")}\n`
@@ -228,10 +236,14 @@ export default class VoiceNotesPlugin extends Plugin {
 						note += `**Subject:** ${creationData.subject}\n\n`
 						note += `${creationData.body}\n`
 					} else if (creation.type === 'todo') {
-						const creationData = creation.content.data as string[]
-
-						if (Array.isArray(creationData)) {
-							note += creationData.map(data => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n')
+						if (existingContent.includes("## Todo") && this.settings.keepTodos) {
+							const todos = existingContent.match(/## Todo\s*([\s\S]*?)(?=\n##|$)/)[1].trim() + '\n';
+							note += todos;
+						} else {
+							const creationData = creation.content.data;
+							if (Array.isArray(creationData)) {
+								note += creationData.map(data => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n');
+							}
 						}
 					} else if (creation.type !== 'tweet' && creation.type !== 'summary') {
 						const creationData = creation.content.data as string[]

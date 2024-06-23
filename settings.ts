@@ -1,4 +1,4 @@
-import {App, Notice, PluginSettingTab, Setting} from "obsidian";
+import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import VoiceNotesApi from "./voicenotes-api";
 import VoiceNotesPlugin from "./main";
 
@@ -14,7 +14,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
   }
 
   async display(): Promise<void> {
-    let {containerEl} = this;
+    let { containerEl } = this;
 
     containerEl.empty();
 
@@ -148,17 +148,17 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       .setName("Automatic sync every")
       .setDesc("Number of minutes between syncing with VoiceNotes.com servers (uncheck to sync manually)")
       .addText(text => {
-          text
-            .setDisabled(!this.plugin.settings.automaticSync)
-            .setPlaceholder("30")
-            .setValue(`${this.plugin.settings.syncTimeout}`)
-            .onChange(async (value) => {
-              this.plugin.settings.syncTimeout = Number(value);
-              await this.plugin.saveSettings();
-            })
-          text.inputEl.type = 'number'
-          return text;
-        }
+        text
+          .setDisabled(!this.plugin.settings.automaticSync)
+          .setPlaceholder("30")
+          .setValue(`${this.plugin.settings.syncTimeout}`)
+          .onChange(async (value) => {
+            this.plugin.settings.syncTimeout = Number(value);
+            await this.plugin.saveSettings();
+          })
+        text.inputEl.type = 'number'
+        return text;
+      }
       )
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.automaticSync)
@@ -204,6 +204,17 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.downloadAudio)
         .onChange(async (value) => {
           this.plugin.settings.downloadAudio = Boolean(value);
+          await this.plugin.saveSettings();
+        })
+      )
+
+    new Setting(containerEl)
+      .setName("To-do list retention")
+      .setDesc("Does not synchronise tasks that have already been synchronised to avoid status deletion")
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.keepTodos)
+        .onChange(async (value) => {
+          this.plugin.settings.keepTodos = Boolean(value);
           await this.plugin.saveSettings();
         })
       )
