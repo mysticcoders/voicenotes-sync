@@ -1,42 +1,3 @@
-
-/*
-{
-    data: {[
-      created_at: ISO,
-      creations: [{
-        content: {
-          data: ["","",""]
-        },
-        created_at: ISO,
-        id: 9231,
-        recording_ids: [int,],
-        type: "points|todo|summary|tweet|email|blog",
-        updated_at: ISO
-      }],
-      duration: 86000,
-      id: 24786,
-      public_slug: null,
-      recording_id: 24786,
-      tags: [],
-      title: "Inject....",
-      transcript: "While the importance of being earnest...",
-      updated_at: ISO
-    ]},
-    links: {
-      first: URL or null,
-      next: URL or null,
-      prev: URL or null
-    },
-    meta: {
-      current_page: 1,
-      from: 1,
-      path: URL,
-      per_page: 10,
-      to: 3
-    }
-}
- */
-
 export interface VoiceNoteData {
     data: string[] | VoiceNoteEmail | string,
 }
@@ -76,6 +37,7 @@ export interface RelatedVoiceNote {
 export interface VoiceNoteEntry {
     created_at: string,
     creations: VoiceNoteCreation[],
+    attachments: VoiceNoteAttachment[],
     duration: number,
     id: number,
     public_slug?: string,
@@ -85,6 +47,15 @@ export interface VoiceNoteEntry {
     transcript: string,
     updated_at: string,
     related_notes: RelatedVoiceNote[],
+}
+
+export interface VoiceNoteAttachment {
+    created_at: string,
+    description: string,
+    id: number,
+    recording_id: string,
+    type: number,
+    url: string,
 }
 
 export interface VoiceNotesLinks {
@@ -104,4 +75,20 @@ export interface VoiceNotesMeta {
 export interface VoiceNoteSignedUrl {
     url: string,
     expiry_time: string,
+}
+
+export interface VoiceNotesPluginSettings {
+    token?: string;
+    username?: string;
+    password?: string;
+    automaticSync: boolean;
+    syncTimeout?: number;
+    downloadAudio?: boolean;
+    downloadAttachment?: boolean;
+    syncDirectory: string;
+    deleteSynced: boolean;
+    reallyDeleteSynced: boolean;
+    todoTag: string;
+    prependDateToTitle: boolean;
+    prependDateFormat: string;
 }

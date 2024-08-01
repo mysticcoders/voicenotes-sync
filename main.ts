@@ -1,30 +1,9 @@
 import {App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile,} from 'obsidian';
 import VoiceNotesApi from "./voicenotes-api";
-import {capitalizeFirstLetter, isToday} from "./utils";
-import {VoiceNoteEmail} from "./types";
+import {capitalizeFirstLetter, getFilenameFromUrl, isToday} from "./utils";
+import {VoiceNoteEmail, VoiceNotesPluginSettings} from "./types";
 import {sanitize} from 'sanitize-filename-ts';
 import {VoiceNotesSettingTab} from "./settings";
-
-declare global {
-	interface Window {
-		moment: typeof moment;
-	}
-}
-
-interface VoiceNotesPluginSettings {
-	token?: string;
-	username?: string;
-	password?: string;
-	automaticSync: boolean;
-	syncTimeout?: number;
-	downloadAudio?: boolean;
-	syncDirectory: string;
-	deleteSynced: boolean;
-	reallyDeleteSynced: boolean;
-	todoTag: string;
-	prependDateToTitle: boolean;
-	prependDateFormat: string;
-}
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
 	automaticSync: true,
@@ -248,6 +227,27 @@ export default class VoiceNotesPlugin extends Plugin {
 					}
 				}
 
+				if (recording.attachments.length > 0) {
+					note += '\n## Attachments\n'
+					note += (await Promise.all(recording.attachments.map(async data => {
+						if (data.type === 1) {
+							return `- ${data.description}`
+						} else if (data.type === 2) {
+							const attachmentsPath = normalizePath(`${voiceNotesDir}/attachments`)
+
+							if (!await this.app.vault.adapter.exists(attachmentsPath)) {
+								await this.app.vault.createFolder(attachmentsPath)
+							}
+
+							const filename = getFilenameFromUrl(data.url)
+							const attachmentPath = normalizePath(`${attachmentsPath}/${filename}`)
+							await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
+							return `- ![[${filename}]]`
+						}
+					}))).join('\n')
+					note += '\n'
+				}
+
 				if (recording.related_notes.length > 0) {
 					note += '\n## Related Notes\n'
 					note += recording.related_notes.map(relatedNote => `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`).join('\n')
@@ -280,6 +280,7 @@ export default class VoiceNotesPlugin extends Plugin {
 				if (this.timeSinceSync >= this.settings.syncTimeout * 60 * 1000) {
 					this.timeSinceSync = 0
 					this.sync()
+					// this.sync(fullSync = false)
 				}
 			}, this.ONE_SECOND)
 		}
