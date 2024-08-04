@@ -1,9 +1,9 @@
-import {App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile,} from 'obsidian';
+import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile, } from 'obsidian';
 import VoiceNotesApi from "./voicenotes-api";
-import {capitalizeFirstLetter, getFilenameFromUrl, isToday} from "./utils";
-import {VoiceNoteEmail, VoiceNotesPluginSettings} from "./types";
-import {sanitize} from 'sanitize-filename-ts';
-import {VoiceNotesSettingTab} from "./settings";
+import { capitalizeFirstLetter, getFilenameFromUrl, isToday } from "./utils";
+import { VoiceNoteEmail, VoiceNotesPluginSettings } from "./types";
+import { sanitize } from 'sanitize-filename-ts';
+import { VoiceNotesSettingTab } from "./settings";
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
 	automaticSync: true,
@@ -21,10 +21,10 @@ export default class VoiceNotesPlugin extends Plugin {
 	settings: VoiceNotesPluginSettings;
 	vnApi: VoiceNotesApi;
 	fs: DataAdapter;
-	syncInterval : number;
-	timeSinceSync : number = 0;
+	syncInterval: number;
+	timeSinceSync: number = 0;
 
-	syncedRecordingIds : number[];
+	syncedRecordingIds: number[];
 
 	ONE_SECOND = 1000;
 
@@ -90,15 +90,15 @@ export default class VoiceNotesPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	async getRecordingIdFromFile(file: TFile) : Promise<number | undefined> {
+	async getRecordingIdFromFile(file: TFile): Promise<number | undefined> {
 		return this.app.metadataCache.getFileCache(file)?.frontmatter?.['recording_id'];
 	}
 
-	async isRecordingFromToday(file: TFile) : Promise<boolean> {
+	async isRecordingFromToday(file: TFile): Promise<boolean> {
 		return isToday(await this.app.metadataCache.getFileCache(file)?.frontmatter?.['created_at']);
 	}
 
-	sanitizedTitle(title: string, created_at: string) : string {
+	sanitizedTitle(title: string, created_at: string): string {
 		let generatedTitle = this.settings.prependDateToTitle ? `${moment(created_at).format(this.settings.prependDateFormat)} ${title}` : title
 		return sanitize(generatedTitle)
 	}
@@ -148,8 +148,8 @@ export default class VoiceNotesPlugin extends Plugin {
 
 				let moreRecordings = await this.vnApi.getRecordingsFromLink(nextPage)
 				recordings.data.push(...moreRecordings.data);
-        nextPage = moreRecordings.links.next;
-			} while(nextPage)
+				nextPage = moreRecordings.links.next;
+			} while (nextPage)
 		}
 
 		// console.dir(recordings)
@@ -171,9 +171,12 @@ export default class VoiceNotesPlugin extends Plugin {
 
 				let note = '---\n'
 				note += `recording_id: ${recording.recording_id}\n`
-				note += `duration: ${recording.duration}\n`
-        note += `created_at: ${recording.created_at}\n`
-        note += `updated_at: ${recording.updated_at}\n`
+				note += `duration: ${Math.floor(recording.duration / 60000) > 0
+					? `${Math.floor(recording.duration / 60000)}m`
+					: ''
+					}${Math.floor((recording.duration % 60000) / 1000).toString().padStart(2, '0')}s\n`
+				note += `created_at: ${recording.created_at}\n`
+				note += `updated_at: ${recording.updated_at}\n`
 
 				if (recording.tags.length > 0) {
 					note += `tags: ${recording.tags.map(tag => tag.name).join(",")}\n`
@@ -195,11 +198,22 @@ export default class VoiceNotesPlugin extends Plugin {
 					}
 
 					note += `![[${recording.recording_id}.mp3]]\n\n`
-					note += '# Transcript\n'
 				}
-				note += recording.transcript
-				note += '\n'
+				const summary = recording.creations.find(creation => creation.type === 'summary');
+
+				if (summary) {
+					note += '# Summary\n\n' + (summary.content.data as string) + '\n\n';
+				}
+
+				note += '# Transcript\n\n' + recording.transcript + '\n';
 				for (const creation of recording.creations) {
+					note += '\n'
+
+					// Skip summary as we've already added it
+					if (creation.type === 'summary') {
+						continue;
+					}
+
 					note += `## ${capitalizeFirstLetter(creation.type)}\n`
 
 					if (creation.type === 'email') {
@@ -249,7 +263,7 @@ export default class VoiceNotesPlugin extends Plugin {
 				}
 
 				if (recording.related_notes.length > 0) {
-					note += '\n## Related Notes\n'
+					note += '\n## Related Notes\n\n'
 					note += recording.related_notes.map(relatedNote => `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`).join('\n')
 				}
 				console.debug(`Writing ${recording.recording_id} to ${recordingPath}`)
