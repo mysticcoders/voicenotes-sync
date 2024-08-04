@@ -176,7 +176,11 @@ export default class VoiceNotesPlugin extends Plugin {
 			note += '# Summary\n\n' + (summary.content.data as string) + '\n\n';
 		}
 		if (points) {
-			note += '# Key Points\n\n' + (points.content.data as string) + '\n\n';
+			const pointsData = points.content.data as string[];
+			if (Array.isArray(pointsData)) {
+				const pointsList = pointsData.map(point => `- ${point.trim()}`).join('\n');
+				note += '# Key Points\n\n' + pointsList + '\n\n';
+			}
 		}
 		if (recording.transcript) {
 			const tidyTranscript = recording.creations.find((creation: { type: string }) => creation.type === 'tidy');
