@@ -265,6 +265,9 @@ export default class VoiceNotesPlugin extends Plugin {
 	async sync(fullSync: boolean = false) {
 		console.debug(`Sync running full? ${fullSync}`)
 
+		// Updating the syncedRecordingIds in case new files were deleted
+		this.syncedRecordingIds = await this.getSyncedRecordingIds();
+
 		this.vnApi = new VoiceNotesApi({});
 		this.vnApi.token = this.settings.token
 
