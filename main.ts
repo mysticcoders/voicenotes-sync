@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
 	automaticSync: true,
 	syncTimeout: 60,
 	downloadAudio: false,
+	replaceTranscriptWithTidy: true,
 	syncDirectory: "voicenotes",
 	deleteSynced: false,
 	reallyDeleteSynced: false,
@@ -199,22 +200,33 @@ export default class VoiceNotesPlugin extends Plugin {
 
 					note += `![[${recording.recording_id}.mp3]]\n\n`
 				}
-				const summary = recording.creations.find(creation => creation.type === 'summary');
 
+				// Add the summary, key points and transcript to the note
+				const summary = recording.creations.find(creation => creation.type === 'summary');
+				const points = recording.creations.find(creation => creation.type === 'points');
 				if (summary) {
 					note += '# Summary\n\n' + (summary.content.data as string) + '\n\n';
 				}
+				if (points) {
+					note += '# Key Points\n\n' + (points.content.data as string) + '\n\n';
+				}
+				if (recording.transcript) {
+					const tidyTranscript = recording.creations.find(creation => creation.type === 'tidy');
+					if (this.settings.replaceTranscriptWithTidy && tidyTranscript) {
+						note += '# Tidy Transcript\n\n' + tidyTranscript.content.data + '\n\n';
+					} else {
+						note += '# Transcript\n\n' + recording.transcript + '\n\n';
+					}
+				}
 
-				note += '# Transcript\n\n' + recording.transcript + '\n';
 				for (const creation of recording.creations) {
-					note += '\n'
 
-					// Skip summary as we've already added it
-					if (creation.type === 'summary') {
+					// Skip summary, points and tidy if we're replacing transcript with tidy
+					if (creation.type === 'summary' || creation.type === 'points' || (creation.type === 'tidy' && this.settings.replaceTranscriptWithTidy)) {
 						continue;
 					}
 
-					note += `## ${capitalizeFirstLetter(creation.type)}\n`
+					note += `## ${capitalizeFirstLetter(creation.type)}\n\n`
 
 					if (creation.type === 'email') {
 						const creationData = creation.content.data as VoiceNoteEmail
@@ -226,14 +238,6 @@ export default class VoiceNotesPlugin extends Plugin {
 						if (Array.isArray(creationData)) {
 							note += creationData.map(data => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n')
 						}
-					} else if (creation.type !== 'tweet' && creation.type !== 'summary') {
-						const creationData = creation.content.data as string[]
-
-						if (Array.isArray(creationData)) {
-							note += creationData.map(data => `- ${data}`).join('\n')
-						}
-
-						note += '\n'
 					} else {
 						const creationData = creation.content.data as string
 						note += creationData

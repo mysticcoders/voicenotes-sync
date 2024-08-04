@@ -84,6 +84,7 @@ export interface VoiceNotesPluginSettings {
     automaticSync: boolean;
     syncTimeout?: number;
     downloadAudio?: boolean;
+    replaceTranscriptWithTidy?: boolean;
     downloadAttachment?: boolean;
     syncDirectory: string;
     deleteSynced: boolean;

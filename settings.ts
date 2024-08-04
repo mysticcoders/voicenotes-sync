@@ -1,4 +1,4 @@
-import {App, Notice, PluginSettingTab, Setting} from "obsidian";
+import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import VoiceNotesApi from "./voicenotes-api";
 import VoiceNotesPlugin from "./main";
 
@@ -14,7 +14,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
   }
 
   async display(): Promise<void> {
-    let {containerEl} = this;
+    let { containerEl } = this;
 
     containerEl.empty();
 
@@ -148,17 +148,17 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       .setName("Automatic sync every")
       .setDesc("Number of minutes between syncing with VoiceNotes.com servers (uncheck to sync manually)")
       .addText(text => {
-          text
-            .setDisabled(!this.plugin.settings.automaticSync)
-            .setPlaceholder("30")
-            .setValue(`${this.plugin.settings.syncTimeout}`)
-            .onChange(async (value) => {
-              this.plugin.settings.syncTimeout = Number(value);
-              await this.plugin.saveSettings();
-            })
-          text.inputEl.type = 'number'
-          return text;
-        }
+        text
+          .setDisabled(!this.plugin.settings.automaticSync)
+          .setPlaceholder("30")
+          .setValue(`${this.plugin.settings.syncTimeout}`)
+          .onChange(async (value) => {
+            this.plugin.settings.syncTimeout = Number(value);
+            await this.plugin.saveSettings();
+          })
+        text.inputEl.type = 'number'
+        return text;
+      }
       )
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.automaticSync)
@@ -208,6 +208,16 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         })
       )
 
+    new Setting(containerEl)
+      .setName("Replace transcript with tidy version")
+      .setDesc("If a tidy version of the transcript is available, replace the transcript with it")
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.replaceTranscriptWithTidy)
+        .onChange(async (value) => {
+          this.plugin.settings.replaceTranscriptWithTidy = Boolean(value);
+          await this.plugin.saveSettings();
+        })
+      )
 
     new Setting(containerEl)
       .setName("Prepend Date to Note Title")
