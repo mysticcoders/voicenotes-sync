@@ -1,4 +1,4 @@
-import { moment } from 'obsidian'
+import { moment } from 'obsidian';
 import * as crypto from 'crypto';
 import { promises as fs } from 'fs';
 
@@ -25,7 +25,7 @@ export function isAlphaNumeric(value: string): boolean {
 }
 
 export function isToday(date: string): boolean {
-  return moment(date).isSame(moment(), 'day')
+  return moment(date).isSame(moment(), 'day');
 }
 
 export async function generateChecksum(filePath: string, algorithm: string = 'sha256'): Promise<string> {
