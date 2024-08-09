@@ -4,7 +4,9 @@ import { capitalizeFirstLetter, getFilenameFromUrl, isToday } from './utils';
 import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
 import { VoiceNotesSettingTab } from './settings';
+// @ts-ignore (Jinja types are not available)
 import * as jinja from 'jinja-js';
+
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     automaticSync: true,
