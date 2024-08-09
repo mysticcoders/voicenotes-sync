@@ -1,322 +1,284 @@
-import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile, } from 'obsidian';
-import VoiceNotesApi from "./voicenotes-api";
-import { capitalizeFirstLetter, getFilenameFromUrl, isToday } from "./utils";
-import { VoiceNoteEmail, VoiceNotesPluginSettings } from "./types";
+import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
+import VoiceNotesApi from './voicenotes-api';
+import { capitalizeFirstLetter, getFilenameFromUrl, isToday } from './utils';
+import { VoiceNoteEmail, VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
-import { VoiceNotesSettingTab } from "./settings";
+import { VoiceNotesSettingTab } from './settings';
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
-	automaticSync: true,
-	syncTimeout: 60,
-	downloadAudio: false,
-	replaceTranscriptWithTidy: true,
-	syncDirectory: "voicenotes",
-	deleteSynced: false,
-	reallyDeleteSynced: false,
-	todoTag: "",
-	prependDateToTitle: false,
-	prependDateFormat: "YYYY-MM-DD"
-}
+    automaticSync: true,
+    syncTimeout: 60,
+    downloadAudio: false,
+    replaceTranscriptWithTidy: true,
+    syncDirectory: 'voicenotes',
+    deleteSynced: false,
+    reallyDeleteSynced: false,
+    todoTag: '',
+    prependDateToTitle: false,
+    prependDateFormat: 'YYYY-MM-DD',
+};
 
 export default class VoiceNotesPlugin extends Plugin {
-	settings: VoiceNotesPluginSettings;
-	vnApi: VoiceNotesApi;
-	fs: DataAdapter;
-	syncInterval: number;
-	timeSinceSync: number = 0;
+    settings: VoiceNotesPluginSettings;
+    vnApi: VoiceNotesApi;
+    fs: DataAdapter;
+    syncInterval: number;
+    timeSinceSync: number = 0;
 
-	syncedRecordingIds: number[];
+    syncedRecordingIds: number[];
 
-	ONE_SECOND = 1000;
+    ONE_SECOND = 1000;
 
-	constructor(app: App, manifest: PluginManifest) {
-		super(app, manifest)
-		this.fs = app.vault.adapter
-	}
+    constructor(app: App, manifest: PluginManifest) {
+        super(app, manifest);
+        this.fs = app.vault.adapter;
+    }
 
-	async onload() {
-		window.clearInterval(this.syncInterval)
+    async onload() {
+        window.clearInterval(this.syncInterval);
 
-		await this.loadSettings();
-		this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
+        await this.loadSettings();
+        this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
 
+        this.addCommand({
+            id: 'manual-sync-voicenotes',
+            name: 'Manual Sync Voicenotes',
+            callback: async () => await this.sync(false),
+        });
 
-		this.addCommand({
-			id: 'manual-sync-voicenotes',
-			name: 'Manual Sync Voicenotes',
-			callback: async () => await this.sync(false)
-		})
+        this.addCommand({
+            id: 'insert-voicenotes-from-today',
+            name: "Insert Today's Voicenotes",
+            editorCallback: async (editor: Editor) => {
+                if (!this.settings.token) {
+                    new Notice('No access available, please login in plugin settings');
+                    return;
+                }
 
-		this.addCommand({
-			id: 'insert-voicenotes-from-today',
-			name: 'Insert Today\'s Voicenotes',
-			editorCallback: async (editor: Editor) => {
-				if (!this.settings.token) {
-					new Notice('No access available, please login in plugin settings')
-					return
-				}
+                const todaysRecordings = await this.getTodaysSyncedRecordings();
 
-				const todaysRecordings = await this.getTodaysSyncedRecordings()
+                if (todaysRecordings.length === 0) {
+                    new Notice('No recordings from today found');
+                    return;
+                }
 
-				if (todaysRecordings.length === 0) {
-					new Notice("No recordings from today found")
-					return
-				}
+                const listOfToday = todaysRecordings.map((filename) => `- [[${filename}]]`).join('\n');
+                editor.replaceSelection(listOfToday);
+            },
+        });
 
-				let listOfToday = todaysRecordings.map(filename => `- [[${filename}]]`).join('\n')
-				editor.replaceSelection(listOfToday)
-			}
-		});
+        this.registerEvent(
+            this.app.metadataCache.on('deleted', (deletedFile, prevCache) => {
+                if (prevCache.frontmatter?.recording_id) {
+                    this.syncedRecordingIds.remove(prevCache.frontmatter?.recording_id);
+                }
+            })
+        );
 
-		this.registerEvent(this.app.metadataCache.on("deleted", (deletedFile, prevCache) => {
-			if (prevCache.frontmatter?.recording_id) {
-				this.syncedRecordingIds.remove(prevCache.frontmatter?.recording_id);
-			}
-		}));
+        this.syncedRecordingIds = await this.getSyncedRecordingIds();
+        await this.sync(this.syncedRecordingIds.length === 0);
+    }
 
-		this.syncedRecordingIds = await this.getSyncedRecordingIds();
-		await this.sync(this.syncedRecordingIds.length === 0);
-	}
+    onunload() {
+        this.syncedRecordingIds = [];
+        window.clearInterval(this.syncInterval);
+    }
 
-	onunload() {
-		this.syncedRecordingIds = []
-		window.clearInterval(this.syncInterval)
-	}
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
 
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
+    async getRecordingIdFromFile(file: TFile): Promise<number | undefined> {
+        return this.app.metadataCache.getFileCache(file)?.frontmatter?.['recording_id'];
+    }
 
-	async getRecordingIdFromFile(file: TFile): Promise<number | undefined> {
-		return this.app.metadataCache.getFileCache(file)?.frontmatter?.['recording_id'];
-	}
+    async isRecordingFromToday(file: TFile): Promise<boolean> {
+        return isToday(await this.app.metadataCache.getFileCache(file)?.frontmatter?.['created_at']);
+    }
 
-	async isRecordingFromToday(file: TFile): Promise<boolean> {
-		return isToday(await this.app.metadataCache.getFileCache(file)?.frontmatter?.['created_at']);
-	}
+    sanitizedTitle(title: string, created_at: string): string {
+        const generatedTitle = this.settings.prependDateToTitle
+            ? `${moment(created_at).format(this.settings.prependDateFormat)} ${title}`
+            : title;
+        return sanitize(generatedTitle);
+    }
 
-	sanitizedTitle(title: string, created_at: string): string {
-		let generatedTitle = this.settings.prependDateToTitle ? `${moment(created_at).format(this.settings.prependDateFormat)} ${title}` : title
-		return sanitize(generatedTitle)
-	}
+    /**
+     * Return the recording IDs that we've already synced
+     */
+    async getSyncedRecordingIds(): Promise<number[]> {
+        const { vault } = this.app;
 
-	/**
-	 * Return the recording IDs that we've already synced
-	 */
-	async getSyncedRecordingIds(): Promise<number[]> {
-		const { vault } = this.app;
+        const markdownFiles = vault.getMarkdownFiles().filter((file) => file.path.startsWith(this.settings.syncDirectory));
 
-		const markdownFiles = vault.getMarkdownFiles().filter(file => file.path.startsWith(this.settings.syncDirectory));
+        return (await Promise.all(markdownFiles.map(async (file) => this.getRecordingIdFromFile(file)))).filter(
+            (recordingId) => recordingId !== undefined
+        ) as number[];
+    }
 
-		return (await Promise.all(
-			markdownFiles.map(async (file) => this.getRecordingIdFromFile(file))
-		)).filter(recordingId => recordingId !== undefined) as number[];
-	}
+    async getTodaysSyncedRecordings(): Promise<string[]> {
+        const { vault } = this.app;
 
-	async getTodaysSyncedRecordings(): Promise<string[]> {
-		const { vault } = this.app;
+        const markdownFiles = vault.getMarkdownFiles().filter((file) => file.path.startsWith(this.settings.syncDirectory));
 
-		const markdownFiles = vault.getMarkdownFiles().filter(file => file.path.startsWith(this.settings.syncDirectory));
+        return (
+            await Promise.all(
+                markdownFiles.map(async (file) => ((await this.isRecordingFromToday(file)) ? file.basename : undefined))
+            )
+        ).filter((filename) => filename !== undefined) as string[];
+    }
 
-		return (await Promise.all(
-			markdownFiles.map(async (file) => await this.isRecordingFromToday(file) ? file.basename : undefined)
-		)).filter(filename => filename !== undefined) as string[];
-	}
+    async processNote(recording: any, voiceNotesDir: string, isSubnote: boolean = false): Promise<void> {
+        if (!recording.title) {
+            new Notice(`Unable to grab voice recording with id: ${recording.id}`);
+            return;
+        }
 
-	async processNote(recording: any, voiceNotesDir: string, isSubnote: boolean = false): Promise<void> {
-		if (!recording.title) {
-			new Notice(`Unable to grab voice recording with id: ${recording.id}`);
-			return;
-		}
+        if (this.syncedRecordingIds.includes(recording.recording_id)) {
+            return;
+        }
 
-		if (this.syncedRecordingIds.includes(recording.recording_id)) {
-			return;
-		}
+        const title = this.sanitizedTitle(recording.title, recording.created_at);
+        const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`);
 
-		const title = this.sanitizedTitle(recording.title, recording.created_at);
-		const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`);
+        let note = '---\n';
+        note += `recording_id: ${recording.recording_id}\n`;
+        note += `duration: ${Math.floor(recording.duration / 60000) > 0
+            ? `${Math.floor(recording.duration / 60000)}m`
+            : ''
+            }${Math.floor((recording.duration % 60000) / 1000).toString().padStart(2, '0')}s\n`;
+        note += `created_at: ${recording.created_at}\n`;
+        note += `updated_at: ${recording.updated_at}\n`;
 
-		let note = '---\n';
-		note += `recording_id: ${recording.recording_id}\n`;
-		note += `duration: ${Math.floor(recording.duration / 60000) > 0
-			? `${Math.floor(recording.duration / 60000)}m`
-			: ''
-			}${Math.floor((recording.duration % 60000) / 1000).toString().padStart(2, '0')}s\n`;
-		note += `created_at: ${recording.created_at}\n`;
-		note += `updated_at: ${recording.updated_at}\n`;
+        if (recording.tags && recording.tags.length > 0) {
+            note += `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}\n`;
+        }
+        note += '---\n';
 
-		if (recording.tags && recording.tags.length > 0) {
-			note += `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(",")}\n`;
-		}
-		note += '---\n';
+        if (this.settings.downloadAudio) {
+            const audioPath = normalizePath(`${voiceNotesDir}/audio`);
 
-		if (this.settings.downloadAudio) {
-			const audioPath = normalizePath(`${voiceNotesDir}/audio`);
+            if (!await this.app.vault.adapter.exists(audioPath)) {
+                await this.app.vault.createFolder(audioPath);
+            }
+            const outputLocationPath = normalizePath(`${audioPath}/${recording.recording_id}.mp3`);
 
-			if (!await this.app.vault.adapter.exists(audioPath)) {
-				await this.app.vault.createFolder(audioPath);
-			}
-			const outputLocationPath = normalizePath(`${audioPath}/${recording.recording_id}.mp3`);
+            if (!await this.app.vault.adapter.exists(outputLocationPath)) {
+                const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id);
+                await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
+            }
 
-			if (!await this.app.vault.adapter.exists(outputLocationPath)) {
-				const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id);
-				await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
-			}
+            note += `![[${recording.recording_id}.mp3]]\n\n`;
+        }
 
-			note += `![[${recording.recording_id}.mp3]]\n\n`;
-		}
+        const summary = recording.creations.find((creation: { type: string }) => creation.type === 'summary');
+        const points = recording.creations.find((creation: { type: string }) => creation.type === 'points');
+        if (summary) {
+            note += '# Summary\n\n' + (summary.content.data as string) + '\n\n';
+        }
+        if (points) {
+            const pointsData = points.content.data as string[];
+            if (Array.isArray(pointsData)) {
+                note += '# Points\n\n';
+                for (const point of pointsData) {
+                    note += `- ${point}\n`;
+                }
+                note += '\n';
+            }
+        }
 
-		const summary = recording.creations.find((creation: { type: string }) => creation.type === 'summary');
-		const points = recording.creations.find((creation: { type: string }) => creation.type === 'points');
-		if (summary) {
-			note += '# Summary\n\n' + (summary.content.data as string) + '\n\n';
-		}
-		if (points) {
-			const pointsData = points.content.data as string[];
-			if (Array.isArray(pointsData)) {
-				const pointsList = pointsData.map(point => `- ${point.trim()}`).join('\n');
-				note += '# Key Points\n\n' + pointsList + '\n\n';
-			}
-		}
-		if (recording.transcript) {
-			const tidyTranscript = recording.creations.find((creation: { type: string }) => creation.type === 'tidy');
-			if (this.settings.replaceTranscriptWithTidy && tidyTranscript) {
-				note += '# Tidy Transcript\n\n' + tidyTranscript.content.data + '\n\n';
-			} else {
-				note += '# Transcript\n\n' + recording.transcript + '\n\n';
-			}
-		}
+        const transcript = recording.creations.find((creation: { type: string }) => creation.type === 'transcript');
+        const tidyTranscript = recording.creations.find((creation: { type: string }) => creation.type === 'tidy_transcript');
 
-		for (const creation of recording.creations) {
-			if (creation.type === 'summary' || creation.type === 'points' || (creation.type === 'tidy' && this.settings.replaceTranscriptWithTidy)) {
-				continue;
-			}
+        if (transcript || tidyTranscript) {
+            note += '# Transcript\n\n';
+            if (this.settings.replaceTranscriptWithTidy && tidyTranscript) {
+                note += tidyTranscript.content.data as string;
+            } else if (transcript) {
+                note += transcript.content.data as string;
+            }
+            note += '\n';
+        }
 
-			note += `## ${capitalizeFirstLetter(creation.type)}\n\n`;
+        if (!isSubnote) {
+            if (recording.related_notes && recording.related_notes.length > 0) {
+                note += '\n## Related Notes\n\n';
+                note += recording.related_notes.map((relatedNote: { title: string; created_at: string }) => `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`).join('\n');
+            }
 
-			if (creation.type === 'email') {
-				const creationData = creation.content.data as VoiceNoteEmail;
-				note += `**Subject:** ${creationData.subject}\n\n`;
-				note += `${creationData.body}\n`;
-			} else if (creation.type === 'todo') {
-				const creationData = creation.content.data as string[];
+            if (recording.subnotes && recording.subnotes.length > 0) {
+                note += '\n### Subnotes\n\n';
+                for (const subnote of recording.subnotes) {
+                    await this.processNote(subnote, voiceNotesDir, true);
+                    note += `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]\n`;
+                }
+            }
+        }
 
-				if (Array.isArray(creationData)) {
-					note += creationData.map(data => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n');
-				}
-			} else {
-				const creationData = creation.content.data as string;
-				note += creationData;
-				note += '\n';
-			}
-		}
+        if (await this.app.vault.adapter.exists(recordingPath)) {
+            await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath), note);
+        } else {
+            await this.app.vault.create(recordingPath, note);
+        }
 
-		if (recording.attachments && recording.attachments.length > 0) {
-			note += '\n## Attachments\n';
-			note += (await Promise.all(recording.attachments.map(async (data: { type: number, description?: string, url?: string }) => {
-				if (data.type === 1) {
-					return `- ${data.description}`;
-				} else if (data.type === 2) {
-					const attachmentsPath = normalizePath(`${voiceNotesDir}/attachments`);
+        this.syncedRecordingIds.push(recording.recording_id);
 
-					if (!await this.app.vault.adapter.exists(attachmentsPath)) {
-						await this.app.vault.createFolder(attachmentsPath);
-					}
+        if (this.settings.deleteSynced && this.settings.reallyDeleteSynced) {
+            await this.vnApi.deleteRecording(recording.recording_id);
+        }
+    }
 
-					const filename = getFilenameFromUrl(data.url);
-					const attachmentPath = normalizePath(`${attachmentsPath}/${filename}`);
-					await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
-					return `- ![[${filename}]]`;
-				}
-			}))).join('\n');
-			note += '\n';
-		}
+    async sync(fullSync: boolean = false) {
+        console.debug(`Sync running full? ${fullSync}`);
 
-		if (!isSubnote) {
-			if (recording.related_notes && recording.related_notes.length > 0) {
-				note += '\n## Related Notes\n\n';
-				note += recording.related_notes.map((relatedNote: { title: string; created_at: string }) => `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`).join('\n');
-			}
+        this.syncedRecordingIds = await this.getSyncedRecordingIds();
 
-			if (recording.subnotes && recording.subnotes.length > 0) {
-				note += '\n### Subnotes\n\n';
-				for (const subnote of recording.subnotes) {
-					await this.processNote(subnote, voiceNotesDir, true);
-					note += `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]\n`;
-				}
-			}
-		}
+        this.vnApi = new VoiceNotesApi({});
+        this.vnApi.token = this.settings.token;
 
-		if (await this.app.vault.adapter.exists(recordingPath)) {
-			await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath), note);
-		} else {
-			await this.app.vault.create(recordingPath, note);
-		}
+        const voiceNotesDir = normalizePath(this.settings.syncDirectory);
+        if (!(await this.app.vault.adapter.exists(voiceNotesDir))) {
+            new Notice('Creating sync directory for Voice Notes Sync plugin');
+            await this.app.vault.createFolder(voiceNotesDir);
+        }
 
-		this.syncedRecordingIds.push(recording.recording_id);
+        const recordings = await this.vnApi.getRecordings();
 
-		// DESTRUCTIVE action which will delete all synced recordings from server if turned on
-		// We ask twice to make sure user is doubly sure
-		if (this.settings.deleteSynced && this.settings.reallyDeleteSynced) {
-			await this.vnApi.deleteRecording(recording.recording_id)
-		}
-	}
+        if (fullSync && recordings.links.next) {
+            let nextPage = recordings.links.next;
 
-	async sync(fullSync: boolean = false) {
-		console.debug(`Sync running full? ${fullSync}`)
+            do {
+                console.debug(`Performing a full sync ${nextPage}`);
 
-		// Updating the syncedRecordingIds in case new files were deleted
-		this.syncedRecordingIds = await this.getSyncedRecordingIds();
+                const moreRecordings = await this.vnApi.getRecordingsFromLink(nextPage);
+                recordings.data.push(...moreRecordings.data);
+                nextPage = moreRecordings.links.next;
+            } while (nextPage);
+        }
 
-		this.vnApi = new VoiceNotesApi({});
-		this.vnApi.token = this.settings.token
+        if (recordings) {
+            new Notice(`Syncing latest Voicenotes`);
+            for (const recording of recordings.data) {
+                await this.processNote(recording, voiceNotesDir);
+            }
+        }
 
-		const voiceNotesDir = normalizePath(this.settings.syncDirectory)
-		if (!await this.app.vault.adapter.exists(voiceNotesDir)) {
-			new Notice("Creating sync directory for Voice Notes Sync plugin")
-			await this.app.vault.createFolder(voiceNotesDir)
-		}
+        window.clearInterval(this.syncInterval);
 
-		let recordings = await this.vnApi.getRecordings()
+        if (this.settings.automaticSync) {
+            console.debug(`timeSinceSync ${this.timeSinceSync} - syncTimeout: ${this.settings.syncTimeout}`);
+            this.syncInterval = window.setInterval(() => {
+                this.timeSinceSync += this.ONE_SECOND;
 
-		if (fullSync && recordings.links.next) {
-			let nextPage = recordings.links.next
-
-			do {
-				console.debug(`Performing a full sync ${nextPage}`)
-
-				let moreRecordings = await this.vnApi.getRecordingsFromLink(nextPage)
-				recordings.data.push(...moreRecordings.data);
-				nextPage = moreRecordings.links.next;
-			} while (nextPage)
-		}
-
-		if (recordings) {
-			new Notice(`Syncing latest Voicenotes`)
-			for (const recording of recordings.data) {
-				await this.processNote(recording, voiceNotesDir);
-			}
-		}
-
-		window.clearInterval(this.syncInterval)
-
-		if (this.settings.automaticSync) {
-			console.debug(`timeSinceSync ${this.timeSinceSync} - syncTimeout: ${this.settings.syncTimeout}`)
-			this.syncInterval = window.setInterval(() => {
-				this.timeSinceSync += this.ONE_SECOND
-
-				if (this.timeSinceSync >= this.settings.syncTimeout * 60 * 1000) {
-					this.timeSinceSync = 0
-					this.sync()
-					// this.sync(fullSync = false)
-				}
-			}, this.ONE_SECOND)
-		}
-
-	}
+                if (this.timeSinceSync >= this.settings.syncTimeout * 60 * 1000) {
+                    this.timeSinceSync = 0;
+                    this.sync();
+                }
+            }, this.ONE_SECOND);
+        }
+    }
 }
-
