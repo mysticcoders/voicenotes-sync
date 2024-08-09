@@ -1,9 +1,10 @@
 import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
 import { capitalizeFirstLetter, getFilenameFromUrl, isToday } from './utils';
-import { VoiceNoteEmail, VoiceNotesPluginSettings } from './types';
+import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
 import { VoiceNotesSettingTab } from './settings';
+import * as jinja from 'jinja-js';
 
 const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     automaticSync: true,
@@ -16,6 +17,10 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     todoTag: '',
     prependDateToTitle: false,
     prependDateFormat: 'YYYY-MM-DD',
+    noteTemplate: '# {{ title }}\n\nDate: {{ date }}\n\n{% if summary %}## Summary\n{{ summary }}\n{% endif %}\n\n{% if points %}## Main points\n{{ points }}\n{% endif %}\n\n## Transcript\n{{ transcript }}\n\n{% if audio_link %}[Audio]({{ audio_link }})\n{% endif %}\n\n{% if todo %}## Todos\n{{ todo }}\n{% endif %}\n\n{% if email %}## Email\n{{ email }}\n{% endif %}\n\n{% if custom %}## Others\n{{ custom }}\n{% endif %}', filenameTemplate: '{{date}} {{title}}',
+    debugMode: false,
+    syncInterval: 30,
+    excludeFolders: [],
 };
 
 export default class VoiceNotesPlugin extends Plugin {
@@ -145,69 +150,73 @@ export default class VoiceNotesPlugin extends Plugin {
         const title = this.sanitizedTitle(recording.title, recording.created_at);
         const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`);
 
-        let note = '---\n';
-        note += `recording_id: ${recording.recording_id}\n`;
-        note += `duration: ${Math.floor(recording.duration / 60000) > 0
-            ? `${Math.floor(recording.duration / 60000)}m`
-            : ''
-            }${Math.floor((recording.duration % 60000) / 1000).toString().padStart(2, '0')}s\n`;
-        note += `created_at: ${recording.created_at}\n`;
-        note += `updated_at: ${recording.updated_at}\n`;
+        // Prepare data for the template
+        const summary = recording.creations.find((creation: { type: string }) => creation.type === 'summary');
+        const points = recording.creations.find((creation: { type: string }) => creation.type === 'points');
+        const transcript = recording.transcript;
+        const tidyTranscript = recording.creations.find((creation: { type: string }) => creation.type === 'tidy_transcript');
+        const todo = recording.creations.find((creation: { type: string }) => creation.type === 'todo');
+        const tweet = recording.creations.find((creation: { type: string }) => creation.type === 'tweet');
+        const blog = recording.creations.find((creation: { type: string }) => creation.type === 'blog');
+        const email = recording.creations.find((creation: { type: string }) => creation.type === 'email');
+        const custom = recording.creations.find((creation: { type: string }) => creation.type === 'custom');
 
-        if (recording.tags && recording.tags.length > 0) {
-            note += `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}\n`;
-        }
-        note += '---\n';
-
+        let audioLink = '';
         if (this.settings.downloadAudio) {
             const audioPath = normalizePath(`${voiceNotesDir}/audio`);
-
             if (!await this.app.vault.adapter.exists(audioPath)) {
                 await this.app.vault.createFolder(audioPath);
             }
             const outputLocationPath = normalizePath(`${audioPath}/${recording.recording_id}.mp3`);
-
             if (!await this.app.vault.adapter.exists(outputLocationPath)) {
                 const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id);
                 await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
             }
-
-            note += `![[${recording.recording_id}.mp3]]\n\n`;
+            audioLink = `![[${recording.recording_id}.mp3]]`;
         }
 
-        const summary = recording.creations.find((creation: { type: string }) => creation.type === 'summary');
-        const points = recording.creations.find((creation: { type: string }) => creation.type === 'points');
-        if (summary) {
-            note += '# Summary\n\n' + (summary.content.data as string) + '\n\n';
-        }
-        if (points) {
-            const pointsData = points.content.data as string[];
-            if (Array.isArray(pointsData)) {
-                note += '# Points\n\n';
-                for (const point of pointsData) {
-                    note += `- ${point}\n`;
-                }
-                note += '\n';
-            }
-        }
+        // Prepare context for Jinja template
+        const context = {
+            title: title,
+            date: recording.created_at,
+            transcript: this.settings.replaceTranscriptWithTidy && tidyTranscript
+                ? tidyTranscript.content.data
+                : transcript,
+            audio_link: audioLink,
+            summary: summary ? summary.content.data : null,
+            tidy: tidyTranscript ? tidyTranscript.content.data : null,
+            points: points ? points.content.data : null,
+            todo: todo ? todo.content.data : null,
+            tweet: tweet ? tweet.content.data : null,
+            blog: blog ? blog.content.data : null,
+            email: email ? email.content.data : null,
+            custom: custom ? custom.content.data : null,
+        };
 
-        const transcript = recording.creations.find((creation: { type: string }) => creation.type === 'transcript');
-        const tidyTranscript = recording.creations.find((creation: { type: string }) => creation.type === 'tidy_transcript');
+        // Render the template using Jinja
+        let note = jinja.render(this.settings.noteTemplate, context);
 
-        if (transcript || tidyTranscript) {
-            note += '# Transcript\n\n';
-            if (this.settings.replaceTranscriptWithTidy && tidyTranscript) {
-                note += tidyTranscript.content.data as string;
-            } else if (transcript) {
-                note += transcript.content.data as string;
-            }
-            note += '\n';
-        }
+        // Add metadata
+        const metadata = `---
+recording_id: ${recording.recording_id}
+duration: ${Math.floor(recording.duration / 60000) > 0
+                ? `${Math.floor(recording.duration / 60000)}m`
+                : ''
+            }${Math.floor((recording.duration % 60000) / 1000).toString().padStart(2, '0')}s
+created_at: ${recording.created_at}
+updated_at: ${recording.updated_at}
+${recording.tags && recording.tags.length > 0 ? `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}` : ''}
+---\n`;
 
+        note = metadata + note;
+
+        // Handle related notes and subnotes
         if (!isSubnote) {
             if (recording.related_notes && recording.related_notes.length > 0) {
                 note += '\n## Related Notes\n\n';
-                note += recording.related_notes.map((relatedNote: { title: string; created_at: string }) => `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`).join('\n');
+                note += recording.related_notes.map((relatedNote: { title: string; created_at: string }) =>
+                    `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`
+                ).join('\n');
             }
 
             if (recording.subnotes && recording.subnotes.length > 0) {
@@ -219,8 +228,9 @@ export default class VoiceNotesPlugin extends Plugin {
             }
         }
 
+        // Create or update the note file
         if (await this.app.vault.adapter.exists(recordingPath)) {
-            await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath), note);
+            await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath) as TFile, note);
         } else {
             await this.app.vault.create(recordingPath, note);
         }

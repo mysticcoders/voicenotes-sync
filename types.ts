@@ -13,6 +13,11 @@ export interface VoiceNotesPluginSettings {
   todoTag: string;
   prependDateToTitle: boolean;
   prependDateFormat: string;
+  noteTemplate: string;
+  filenameTemplate: string;
+  debugMode: boolean;
+  syncInterval: number;
+  excludeFolders: string[];
 }
 
 export interface UserSettings {

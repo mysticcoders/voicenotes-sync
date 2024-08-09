@@ -265,10 +265,10 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Custom Note Template')
-      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}')
+      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{custom}}')
       .addTextArea((text) =>
         text
-          .setPlaceholder('# {{title}}\n\nDate: {{date}}\n\n{{transcript}}\n\n[Audio]({{audio_link}})')
+          .setPlaceholder('# {{ title }}\n\nDate: {{ date }}\n\n{% if summary %}## Summary\n{{ summary }}\n{% endif %}\n\n{% if points %}## Main points\n{{ points }}\n{% endif %}\n\n## Transcript\n{{ transcript }}\n\n{% if audio_link %}[Audio]({{ audio_link }})\n{% endif %}\n\n{% if todo %}## Todos\n{{ todo }}\n{% endif %}\n\n{% if email %}## Email\n{{ email }}\n{% endif %}\n\n{% if custom %}## Others\n{{ custom }}\n{% endif %}')
           .setValue(this.plugin.settings.noteTemplate)
           .onChange(async (value) => {
             this.plugin.settings.noteTemplate = value;
