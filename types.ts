@@ -59,9 +59,9 @@ export interface VoiceNoteSignedUrl {
 }
 
 export interface VoiceNoteRecordings {
-  data: any[]; // Le type exact des éléments du tableau dépendra de la structure de vos enregistrements
+  data: any[];
   links: {
     next?: string;
   };
-  json: any; // Ceci est utilisé dans getRecordingsFromLink, mais il serait préférable de spécifier une structure plus précise si possible
+  json: any;
 }

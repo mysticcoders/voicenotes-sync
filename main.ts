@@ -1,6 +1,6 @@
 import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
-import { getFilenameFromUrl, isToday } from './utils';
+import { getFilenameFromUrl, isToday, formatDuration, formatTags } from './utils';
 import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
 import { VoiceNotesSettingTab } from './settings';
@@ -17,8 +17,77 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     reallyDeleteSynced: false,
     todoTag: '',
     prependDateFormat: 'YYYY-MM-DD',
-    noteTemplate: `# {{ title }}\n\nDate: {{ date }}\n{% if summary %}## Summary\n\n{{ summary }}{% endif %}\n{% if points %}## Main points\n\n{{ points }}{% endif %}\n{% if attachments %}## Attachments\n\n{{ attachments }}{% endif %}\n## Transcript\n\n{{ transcript }}\n{% if audio_link %}[Audio]({{ audio_link }}){% endif %}\n{% if todo %}## Todos\n\n{{ todo }}{% endif %}\n{% if email %}## Email\n\n{{ email }}{% endif %}\n{% if custom %}## Others\n\n{{ custom }}{% endif %}\n{% if tags %}## Tags\n\n{{ tags }}{% endif %}\n{% if related_notes %}# Related Notes\n\n{{ related_notes }}{% endif %}\n{% if subnotes %}## Subnotes\n\n{{ subnotes }}{% endif %}`,
-    filenameTemplate: '{{date}} {{title}}',
+    noteTemplate: `
+# {{ title }}
+
+Date: {{ date }}
+
+{% if summary %}
+## Summary
+
+{{ summary }}
+{% endif %}
+
+{% if points %}
+## Main points
+
+{{ points }}
+{% endif %}
+
+{% if attachments %}
+## Attachments
+
+{{ attachments }}
+{% endif %}
+
+## Transcript
+
+{{ transcript }}
+
+{% if audio_link %}
+[Audio]({{ audio_link }})
+{% endif %}
+
+{% if todo %}
+## Todos
+
+{{ todo }}
+{% endif %}
+
+{% if email %}
+## Email
+
+{{ email }}
+{% endif %}
+
+{% if custom %}
+## Others
+
+{{ custom }}
+{% endif %}
+
+{% if tags %}
+## Tags
+
+{{ tags }}
+{% endif %}
+
+{% if related_notes %}
+# Related Notes
+
+{{ related_notes }}
+{% endif %}
+
+{% if subnotes %}
+## Subnotes
+
+{{ subnotes }}
+{% endif %}
+`,
+
+    filenameTemplate: `
+{{date}} {{title}}
+`,
     debugMode: false,
     syncInterval: 30,
     excludeFolders: [],
@@ -236,13 +305,10 @@ export default class VoiceNotesPlugin extends Plugin {
         // Add metadata
         const metadata = `---
     recording_id: ${recording.recording_id}
-    duration: ${Math.floor(recording.duration / 60000) > 0
-                ? `${Math.floor(recording.duration / 60000)}m`
-                : ''
-            }${Math.floor((recording.duration % 60000) / 1000).toString().padStart(2, '0')}s
+    duration: ${formatDuration(recording.duration)}
     created_at: ${recording.created_at}
     updated_at: ${recording.updated_at}
-    ${recording.tags && recording.tags.length > 0 ? `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}` : ''}
+    ${formatTags(recording)}
 ---\n`;
 
         note = metadata + note;
