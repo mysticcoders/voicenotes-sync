@@ -191,29 +191,8 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Replace transcript with tidy version")
-      .setDesc("If a tidy version of the transcript is available, replace the transcript with it")
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.replaceTranscriptWithTidy)
-        .onChange(async (value) => {
-          this.plugin.settings.replaceTranscriptWithTidy = Boolean(value);
-          await this.plugin.saveSettings();
-        })
-      );
-
-    new Setting(containerEl)
-      .setName('Prepend Date to Note Title')
-      .setDesc('Adding the dates to the file names of all synced notes')
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.prependDate).onChange(async (value) => {
-          this.plugin.settings.prependDate = value;
-          await this.plugin.saveSettings();
-        })
-      );
-
-    new Setting(containerEl)
       .setName('Date Format')
-      .setDesc('Format of the date to prepend to the note title (moment.js format)')
+      .setDesc('Format of the date used in the templates below (moment.js format)')
       .addText((text) =>
         text
           .setPlaceholder('YYYY-MM-DD')

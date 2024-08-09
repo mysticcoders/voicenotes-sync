@@ -1,6 +1,6 @@
 import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
-import { capitalizeFirstLetter, getFilenameFromUrl, isToday } from './utils';
+import { getFilenameFromUrl, isToday } from './utils';
 import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
 import { VoiceNotesSettingTab } from './settings';
@@ -12,12 +12,10 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     automaticSync: true,
     syncTimeout: 60,
     downloadAudio: false,
-    replaceTranscriptWithTidy: true,
     syncDirectory: 'voicenotes',
     deleteSynced: false,
     reallyDeleteSynced: false,
     todoTag: '',
-    prependDateToTitle: false,
     prependDateFormat: 'YYYY-MM-DD',
     noteTemplate: `# {{ title }}\n\nDate: {{ date }}\n{% if summary %}## Summary\n\n{{ summary }}{% endif %}\n{% if points %}## Main points\n\n{{ points }}{% endif %}\n{% if attachments %}## Attachments\n\n{{ attachments }}{% endif %}\n## Transcript\n\n{{ transcript }}\n{% if audio_link %}[Audio]({{ audio_link }}){% endif %}\n{% if todo %}## Todos\n\n{{ todo }}{% endif %}\n{% if email %}## Email\n\n{{ email }}{% endif %}\n{% if custom %}## Others\n\n{{ custom }}{% endif %}\n{% if tags %}## Tags\n\n{{ tags }}{% endif %}\n{% if related_notes %}# Related Notes\n\n{{ related_notes }}{% endif %}\n{% if subnotes %}## Subnotes\n\n{{ subnotes }}{% endif %}`,
     filenameTemplate: '{{date}} {{title}}',
@@ -111,9 +109,10 @@ export default class VoiceNotesPlugin extends Plugin {
     }
 
     sanitizedTitle(title: string, created_at: string): string {
-        const generatedTitle = this.settings.prependDateToTitle
-            ? `${moment(created_at).format(this.settings.prependDateFormat)} ${title}`
-            : title;
+        const date = moment(created_at).format(this.settings.dateFormat);
+        const generatedTitle = this.settings.filenameTemplate
+            .replace('{{date}}', date)
+            .replace('{{title}}', title);
         return sanitize(generatedTitle);
     }
 
@@ -206,10 +205,8 @@ export default class VoiceNotesPlugin extends Plugin {
 
         const context = {
             title: title,
-            date: recording.created_at,
-            transcript: this.settings.replaceTranscriptWithTidy && tidyTranscript
-                ? tidyTranscript.content.data
-                : transcript,
+            date: moment(recording.created_at).format(this.settings.dateFormat),
+            transcript: transcript,
             audio_link: audioLink,
             summary: summary ? summary.content.data : null,
             tidy: tidyTranscript ? tidyTranscript.content.data : null,

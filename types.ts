@@ -1,3 +1,7 @@
+/* -------------------------------------------------------------------------- */
+/*                                    MAIN                                    */
+/* -------------------------------------------------------------------------- */
+
 export interface VoiceNotesPluginSettings {
   token?: string;
   username?: string;
@@ -5,13 +9,11 @@ export interface VoiceNotesPluginSettings {
   automaticSync: boolean;
   syncTimeout?: number;
   downloadAudio?: boolean;
-  replaceTranscriptWithTidy?: boolean;
   downloadAttachment?: boolean;
   syncDirectory: string;
   deleteSynced: boolean;
   reallyDeleteSynced: boolean;
   todoTag: string;
-  prependDateToTitle: boolean;
   prependDateFormat: string;
   noteTemplate: string;
   filenameTemplate: string;
@@ -46,4 +48,20 @@ export interface User {
   recordings_count: number;
   public_recordings_count: number;
   settings: UserSettings;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               VOICENOTES API                               */
+/* -------------------------------------------------------------------------- */
+
+export interface VoiceNoteSignedUrl {
+  url: string;
+}
+
+export interface VoiceNoteRecordings {
+  data: any[]; // Le type exact des éléments du tableau dépendra de la structure de vos enregistrements
+  links: {
+    next?: string;
+  };
+  json: any; // Ceci est utilisé dans getRecordingsFromLink, mais il serait préférable de spécifier une structure plus précise si possible
 }
