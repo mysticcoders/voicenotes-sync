@@ -17,7 +17,8 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     todoTag: '',
     prependDateToTitle: false,
     prependDateFormat: 'YYYY-MM-DD',
-    noteTemplate: '# {{ title }}\n\nDate: {{ date }}\n\n{% if summary %}## Summary\n{{ summary }}\n{% endif %}\n\n{% if points %}## Main points\n{{ points }}\n{% endif %}\n\n## Transcript\n{{ transcript }}\n\n{% if audio_link %}[Audio]({{ audio_link }})\n{% endif %}\n\n{% if todo %}## Todos\n{{ todo }}\n{% endif %}\n\n{% if email %}## Email\n{{ email }}\n{% endif %}\n\n{% if custom %}## Others\n{{ custom }}\n{% endif %}', filenameTemplate: '{{date}} {{title}}',
+    noteTemplate: '# {{ title }}\n\nDate: {{ date }}\n{% if summary %}## Summary\n\n{{ summary }}{% endif %}\n{% if points %}## Main points\n\n{{ points }}{% endif %}\n## Transcript\n\n{{ transcript }}\n{% if audio_link %}[Audio]({{ audio_link }}){% endif %}\n{% if todo %}## Todos\n\n{{ todo }}{% endif %}\n{% if email %}## Email\n\n{{ email }}{% endif %}\n{% if custom %}## Others\n\n{{ custom }}{% endif %}\n{% if tags %}## Tags\n\n{{ tags }}{% endif %}\n{% if related_notes %}# Related Notes\n\n{{ related_notes }}{% endif %}\n{% if subnotes %}## Subnotes\n\n{{ subnotes }}{% endif %}',
+    filenameTemplate: '{{date}} {{title}}',
     debugMode: false,
     syncInterval: 30,
     excludeFolders: [],
@@ -151,15 +152,16 @@ export default class VoiceNotesPlugin extends Plugin {
         const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`);
 
         // Prepare data for the template
-        const summary = recording.creations.find((creation: { type: string }) => creation.type === 'summary');
-        const points = recording.creations.find((creation: { type: string }) => creation.type === 'points');
-        const transcript = recording.transcript;
-        const tidyTranscript = recording.creations.find((creation: { type: string }) => creation.type === 'tidy_transcript');
-        const todo = recording.creations.find((creation: { type: string }) => creation.type === 'todo');
-        const tweet = recording.creations.find((creation: { type: string }) => creation.type === 'tweet');
-        const blog = recording.creations.find((creation: { type: string }) => creation.type === 'blog');
-        const email = recording.creations.find((creation: { type: string }) => creation.type === 'email');
-        const custom = recording.creations.find((creation: { type: string }) => creation.type === 'custom');
+        const creationTypes = ['summary', 'points', 'tidy_transcript', 'todo', 'tweet', 'blog', 'email', 'custom'];
+        const creations = Object.fromEntries(
+            creationTypes.map(type => [type, recording.creations.find((creation: { type: string }) => creation.type === type)])
+        );
+
+        const { transcript } = recording;
+
+        // Destructure creations object to get individual variables if needed
+        const { summary, points, tidyTranscript, todo, tweet, blog, email, custom } = creations;
+
 
         let audioLink = '';
         if (this.settings.downloadAudio) {
@@ -176,6 +178,10 @@ export default class VoiceNotesPlugin extends Plugin {
         }
 
         // Prepare context for Jinja template
+        const formattedPoints = points ? points.content.data.map((data: string) => `- ${data}`).join('\n') : null;
+        const formattedTodos = todo ? todo.content.data.map((data: string) => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n') : null;
+        const formattedTags = recording.tags && recording.tags.length > 0 ? recording.tags.map((tag: { name: string }) => `#${tag.name}`).join(' ') : null;
+
         const context = {
             title: title,
             date: recording.created_at,
@@ -185,12 +191,23 @@ export default class VoiceNotesPlugin extends Plugin {
             audio_link: audioLink,
             summary: summary ? summary.content.data : null,
             tidy: tidyTranscript ? tidyTranscript.content.data : null,
-            points: points ? points.content.data : null,
-            todo: todo ? todo.content.data : null,
+            points: formattedPoints,
+            todo: formattedTodos,
             tweet: tweet ? tweet.content.data : null,
             blog: blog ? blog.content.data : null,
             email: email ? email.content.data : null,
             custom: custom ? custom.content.data : null,
+            tags: formattedTags,
+            related_notes: recording.related_notes && recording.related_notes.length > 0
+                ? recording.related_notes.map((relatedNote: { title: string; created_at: string }) =>
+                    `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`
+                ).join('\n')
+                : null,
+            subnotes: recording.subnotes && recording.subnotes.length > 0
+                ? recording.subnotes.map((subnote: { title: string; created_at: string }) =>
+                    `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]`
+                ).join('\n')
+                : null,
         };
 
         // Render the template using Jinja
@@ -212,18 +229,9 @@ ${recording.tags && recording.tags.length > 0 ? `tags: ${recording.tags.map((tag
 
         // Handle related notes and subnotes
         if (!isSubnote) {
-            if (recording.related_notes && recording.related_notes.length > 0) {
-                note += '\n## Related Notes\n\n';
-                note += recording.related_notes.map((relatedNote: { title: string; created_at: string }) =>
-                    `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`
-                ).join('\n');
-            }
-
             if (recording.subnotes && recording.subnotes.length > 0) {
-                note += '\n### Subnotes\n\n';
                 for (const subnote of recording.subnotes) {
                     await this.processNote(subnote, voiceNotesDir, true);
-                    note += `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]\n`;
                 }
             }
         }
