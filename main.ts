@@ -24,6 +24,8 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     debugMode: false,
     syncInterval: 30,
     excludeFolders: [],
+    dateFormat: 'YYYY-MM-DD',
+    prependDate: false
 };
 
 export default class VoiceNotesPlugin extends Plugin {

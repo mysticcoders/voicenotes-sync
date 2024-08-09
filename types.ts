@@ -18,6 +18,8 @@ export interface VoiceNotesPluginSettings {
   debugMode: boolean;
   syncInterval: number;
   excludeFolders: string[];
+  dateFormat: string;
+  prependDate: boolean;
 }
 
 export interface UserSettings {
