@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     todoTag: '',
     prependDateToTitle: false,
     prependDateFormat: 'YYYY-MM-DD',
-    noteTemplate: '# {{ title }}\n\nDate: {{ date }}\n{% if summary %}## Summary\n\n{{ summary }}{% endif %}\n{% if points %}## Main points\n\n{{ points }}{% endif %}\n## Transcript\n\n{{ transcript }}\n{% if audio_link %}[Audio]({{ audio_link }}){% endif %}\n{% if todo %}## Todos\n\n{{ todo }}{% endif %}\n{% if email %}## Email\n\n{{ email }}{% endif %}\n{% if custom %}## Others\n\n{{ custom }}{% endif %}\n{% if tags %}## Tags\n\n{{ tags }}{% endif %}\n{% if related_notes %}# Related Notes\n\n{{ related_notes }}{% endif %}\n{% if subnotes %}## Subnotes\n\n{{ subnotes }}{% endif %}',
+    noteTemplate: `# {{ title }}\n\nDate: {{ date }}\n{% if summary %}## Summary\n\n{{ summary }}{% endif %}\n{% if points %}## Main points\n\n{{ points }}{% endif %}\n{% if attachments %}## Attachments\n\n{{ attachments }}{% endif %}\n## Transcript\n\n{{ transcript }}\n{% if audio_link %}[Audio]({{ audio_link }}){% endif %}\n{% if todo %}## Todos\n\n{{ todo }}{% endif %}\n{% if email %}## Email\n\n{{ email }}{% endif %}\n{% if custom %}## Others\n\n{{ custom }}{% endif %}\n{% if tags %}## Tags\n\n{{ tags }}{% endif %}\n{% if related_notes %}# Related Notes\n\n{{ related_notes }}{% endif %}\n{% if subnotes %}## Subnotes\n\n{{ subnotes }}{% endif %}`,
     filenameTemplate: '{{date}} {{title}}',
     debugMode: false,
     syncInterval: 30,
@@ -164,7 +164,6 @@ export default class VoiceNotesPlugin extends Plugin {
         // Destructure creations object to get individual variables if needed
         const { summary, points, tidyTranscript, todo, tweet, blog, email, custom } = creations;
 
-
         let audioLink = '';
         if (this.settings.downloadAudio) {
             const audioPath = normalizePath(`${voiceNotesDir}/audio`);
@@ -177,6 +176,25 @@ export default class VoiceNotesPlugin extends Plugin {
                 await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
             }
             audioLink = `![[${recording.recording_id}.mp3]]`;
+        }
+
+        // Handle attachments
+        let attachments = '';
+        if (recording.attachments && recording.attachments.length > 0) {
+            const attachmentsPath = normalizePath(`${voiceNotesDir}/attachments`);
+            if (!await this.app.vault.adapter.exists(attachmentsPath)) {
+                await this.app.vault.createFolder(attachmentsPath);
+            }
+            attachments = (await Promise.all(recording.attachments.map(async (data: any) => {
+                if (data.type === 1) {
+                    return `- ${data.description}`;
+                } else if (data.type === 2) {
+                    const filename = getFilenameFromUrl(data.url);
+                    const attachmentPath = normalizePath(`${attachmentsPath}/${filename}`);
+                    await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
+                    return `- ![[${filename}]]`;
+                }
+            }))).join('\n');
         }
 
         // Prepare context for Jinja template
@@ -210,6 +228,7 @@ export default class VoiceNotesPlugin extends Plugin {
                     `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]`
                 ).join('\n')
                 : null,
+            attachments: attachments,
         };
 
         // Render the template using Jinja
@@ -217,14 +236,14 @@ export default class VoiceNotesPlugin extends Plugin {
 
         // Add metadata
         const metadata = `---
-recording_id: ${recording.recording_id}
-duration: ${Math.floor(recording.duration / 60000) > 0
+    recording_id: ${recording.recording_id}
+    duration: ${Math.floor(recording.duration / 60000) > 0
                 ? `${Math.floor(recording.duration / 60000)}m`
                 : ''
             }${Math.floor((recording.duration % 60000) / 1000).toString().padStart(2, '0')}s
-created_at: ${recording.created_at}
-updated_at: ${recording.updated_at}
-${recording.tags && recording.tags.length > 0 ? `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}` : ''}
+    created_at: ${recording.created_at}
+    updated_at: ${recording.updated_at}
+    ${recording.tags && recording.tags.length > 0 ? `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}` : ''}
 ---\n`;
 
         note = metadata + note;

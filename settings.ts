@@ -268,7 +268,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{custom}}')
       .addTextArea((text) =>
         text
-          .setPlaceholder('# {{ title }}\n\nDate: {{ date }}\n{% if summary %}## Summary\n\n{{ summary }}{% endif %}\n{% if points %}## Main points\n\n{{ points }}{% endif %}\n## Transcript\n\n{{ transcript }}\n{% if audio_link %}[Audio]({{ audio_link }}){% endif %}\n{% if todo %}## Todos\n\n{{ todo }}{% endif %}\n{% if email %}## Email\n\n{{ email }}{% endif %}\n{% if custom %}## Others\n\n{{ custom }}{% endif %}\n{% if tags %}## Tags\n\n{{ tags }}{% endif %}\n{% if related_notes %}# Related Notes\n\n{{ related_notes }}{% endif %}\n{% if subnotes %}## Subnotes\n\n{{ subnotes }}{% endif %}')
+          .setPlaceholder('# {{ title }}\n\nDate: {{ date }}\n{% if summary %}## Summary\n\n{{ summary }}{% endif %}\n{% if points %}## Main points\n\n{{ points }}{% endif %}\n{% if attachments %}## Attachments\n\n{{ attachments }}{% endif %}\n## Transcript\n\n{{ transcript }}\n{% if audio_link %}[Audio]({{ audio_link }}){% endif %}\n{% if todo %}## Todos\n\n{{ todo }}{% endif %}\n{% if email %}## Email\n\n{{ email }}{% endif %}\n{% if custom %}## Others\n\n{{ custom }}{% endif %}\n{% if tags %}## Tags\n\n{{ tags }}{% endif %}\n{% if related_notes %}# Related Notes\n\n{{ related_notes }}{% endif %}\n{% if subnotes %}## Subnotes\n\n{{ subnotes }}{% endif %}')
           .setValue(this.plugin.settings.noteTemplate)
           .onChange(async (value) => {
             this.plugin.settings.noteTemplate = value;
