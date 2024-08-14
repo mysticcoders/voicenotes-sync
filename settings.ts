@@ -191,41 +191,81 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Prepend Date to Note Title')
-      .setDesc('Adding the dates to the file names of all synced notes')
+      .setName('Date Format')
+      .setDesc('Format of the date used in the templates below (moment.js format)')
+      .addText((text) =>
+        text
+          .setPlaceholder('YYYY-MM-DD')
+          .setValue(this.plugin.settings.dateFormat)
+          .onChange(async (value) => {
+            this.plugin.settings.dateFormat = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Filename Template')
+      .setDesc('Template for the filename of synced notes. Available variables: {{date}}, {{title}}')
+      .addText((text) =>
+        text
+          .setPlaceholder('{{date}} {{title}}')
+          .setValue(this.plugin.settings.filenameTemplate)
+          .onChange(async (value) => {
+            this.plugin.settings.filenameTemplate = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Debug Mode')
+      .setDesc('Enable debug mode for additional logging')
       .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.prependDateToTitle).onChange(async (value) => {
-          this.plugin.settings.prependDateToTitle = value;
+        toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
+          this.plugin.settings.debugMode = value;
           await this.plugin.saveSettings();
         })
       );
 
     new Setting(containerEl)
-      .setName('Delete synced recordings')
-      .setDesc('DESTRUCTIVE action which after syncing the note locally will delete it from the voicenotes.com server.')
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.deleteSynced).onChange(async (value) => {
-          this.plugin.settings.deleteSynced = value;
-
-          if (!value) {
-            this.plugin.settings.reallyDeleteSynced = false;
-          }
-
-          await this.plugin.saveSettings();
-          await this.display();
-        })
+      .setName('Sync Interval')
+      .setDesc('Interval in minutes for automatic synchronization')
+      .addText((text) =>
+        text
+          .setPlaceholder('30')
+          .setValue(String(this.plugin.settings.syncInterval))
+          .onChange(async (value) => {
+            const interval = parseInt(value, 10);
+            if (!isNaN(interval) && interval > 0) {
+              this.plugin.settings.syncInterval = interval;
+              await this.plugin.saveSettings();
+            }
+          })
       );
 
-    if (this.plugin.settings.deleteSynced) {
-      new Setting(containerEl)
-        .setName('REALLY delete synced recordings')
-        .setDesc('We want you to be sufficiently clear that this will delete anything on voicenotes.com')
-        .addToggle((toggle) =>
-          toggle.setValue(this.plugin.settings.reallyDeleteSynced).onChange(async (value) => {
-            this.plugin.settings.reallyDeleteSynced = Boolean(value);
+    new Setting(containerEl)
+      .setName('Custom Note Template')
+      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{custom}}')
+      .addTextArea((text) =>
+        text
+          .setPlaceholder(this.plugin.settings.noteTemplate)
+          .setValue(this.plugin.settings.noteTemplate)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTemplate = value;
             await this.plugin.saveSettings();
           })
-        );
-    }
+      );
+
+    new Setting(containerEl)
+      .setName('Exclude Folders')
+      .setDesc('Comma-separated list of folders to exclude from syncing')
+      .addText((text) =>
+        text
+          .setPlaceholder('Archive, Drafts')
+          .setValue(this.plugin.settings.excludeFolders.join(', '))
+          .onChange(async (value) => {
+            this.plugin.settings.excludeFolders = value.split(',').map((folder) => folder.trim());
+            await this.plugin.saveSettings();
+          })
+      );
   }
 }
