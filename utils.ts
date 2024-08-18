@@ -81,26 +81,16 @@ export function autoResizeTextArea(textarea: HTMLTextAreaElement): void {
   });
 }
 
-export function convertHtmlToText(html: string): string {
-  // Convert HTML to text
-  let text = htmlToText(html, {
-    wordwrap: false,
-    preserveNewlines: true,
-  });
-
-  // Replace common HTML entities
-  const entities: { [key: string]: string } = {
-    '&quot;': '"',
-    '&amp;': '&',
+export function convertHtmlEntitiesToMarkdown(text: string): string {
+  const htmlEntities: { [key: string]: string } = {
     '&lt;': '<',
     '&gt;': '>',
-    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&quot;': '"',
     '&#39;': "'",
+    '&nbsp;': ' ',
+    '&br;': '\n'
   };
 
-  for (const [entity, replacement] of Object.entries(entities)) {
-    text = text.replace(new RegExp(entity, 'g'), replacement);
-  }
-
-  return text;
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => htmlEntities[entity] || entity);
 }

@@ -1,6 +1,8 @@
 import { App, DataAdapter, Editor, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
-import { getFilenameFromUrl, isToday, formatDuration, formatDate, formatTags, convertHtmlToText } from './utils';
+import {
+    getFilenameFromUrl, isToday, formatDuration, formatDate, formatTags, convertHtmlEntitiesToMarkdown
+} from './utils';
 import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
 import { VoiceNotesSettingTab } from './settings';
@@ -19,88 +21,91 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     prependDateFormat: 'YYYY-MM-DD',
     useDefaultFrontmatter: true,
     noteTemplate: `
-    # {{ title }}
-    
-    Date: {{ date }}
-    
-    {% if summary %}
-    ## Summary
-    
-    {{ summary }}
-    {% endif %}
-    
-    {% if points %}
-    ## Main points
-    
-    {{ points }}
-    {% endif %}
-    
-    {% if attachments %}
-    ## Attachments
-    
-    {{ attachments }}
-    {% endif %}
-    
-    ## Transcript
-    
-    {% if tidy %}
-    {{ tidy }}
-    {% else %}
-    {{ transcript }}
-    {% endif %}
-    
-    {% if audio_link %}
-    [Audio]({{ audio_link }})
-    {% endif %}
-    
-    {% if todo %}
-    ## Todos
-    
-    {{ todo }}
-    {% endif %}
-    
-    {% if email %}
-    ## Email
-    
-    {{ email }}
-    {% endif %}
-    
-    {% if blog %}
-    ## Blog
-    
-    {{ blog }}
-    {% endif %}
-    
-    {% if tweet %}
-    ## Tweet
-    
-    {{ tweet }}
-    {% endif %}
-    
-    {% if custom %}
-    ## Others
-    
-    {{ custom }}
-    {% endif %}
-    
-    {% if tags %}
-    ## Tags
-    
-    {{ tags }}
-    {% endif %}
-    
-    {% if related_notes %}
-    # Related Notes
-    
-    {{ related_notes }}
-    {% endif %}
-    
-    {% if subnotes %}
-    ## Subnotes
-    
-    {{ subnotes }}
-    {% endif %}
-    `,
+# {{ title }}
+
+Date: {{ date }}
+
+{% if summary %}
+## Summary
+
+{{ summary }}
+{% endif %}
+
+{% if points %}
+## Main points
+
+{{ points }}
+{% endif %}
+
+{% if attachments %}
+## Attachments
+
+{{ attachments }}
+{% endif %}
+
+{% if tidy %}
+## Tidy Transcript
+
+{{ tidy }}
+
+{% else %}
+## Transcript
+
+{{ transcript }}
+{% endif %}
+
+{% if audio_link %}
+[Audio]({{ audio_link }})
+{% endif %}
+
+{% if todo %}
+## Todos
+
+{{ todo }}
+{% endif %}
+
+{% if email %}
+## Email
+
+{{ email }}
+{% endif %}
+
+{% if blog %}
+## Blog
+
+{{ blog }}
+{% endif %}
+
+{% if tweet %}
+## Tweet
+
+{{ tweet }}
+{% endif %}
+
+{% if custom %}
+## Others
+
+{{ custom }}
+{% endif %}
+
+{% if tags %}
+## Tags
+
+{{ tags }}
+{% endif %}
+
+{% if related_notes %}
+# Related Notes
+
+{{ related_notes }}
+{% endif %}
+
+{% if subnotes %}
+## Subnotes
+
+{{ subnotes }}
+{% endif %}
+`,
 
     filenameTemplate: `
 {{date}} {{title}}
@@ -173,7 +178,7 @@ export default class VoiceNotesPlugin extends Plugin {
         setTimeout(async () => {
             this.syncedRecordingIds = await this.getSyncedRecordingIds();
             await this.sync(this.syncedRecordingIds.length === 0);
-        }, 5000);
+        }, 1000);
     }
 
     onunload() {
@@ -261,7 +266,7 @@ export default class VoiceNotesPlugin extends Plugin {
         const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`);
 
         // Prepare data for the template
-        const creationTypes = ['summary', 'points', 'tidy_transcript', 'todo', 'tweet', 'blog', 'email', 'custom'];
+        const creationTypes = ['summary', 'points', 'tidy', 'todo', 'tweet', 'blog', 'email', 'custom'];
         const creations = Object.fromEntries(
             creationTypes.map(type => [type, recording.creations.find((creation: { type: string }) => creation.type === type)])
         );
@@ -269,7 +274,7 @@ export default class VoiceNotesPlugin extends Plugin {
         const { transcript } = recording;
 
         // Destructure creations object to get individual variables if needed
-        const { summary, points, tidyTranscript, todo, tweet, blog, email, custom } = creations;
+        const { summary, points, tidy, todo, tweet, blog, email, custom } = creations;
 
         let audioLink = '';
         if (this.settings.downloadAudio) {
@@ -310,18 +315,18 @@ export default class VoiceNotesPlugin extends Plugin {
         const formattedTags = recording.tags && recording.tags.length > 0 ? recording.tags.map((tag: { name: string }) => `#${tag.name}`).join(' ') : null;
 
         const context = {
-            title: convertHtmlToText(title),
+            title: title,
             date: formatDate(recording.created_at, this.settings.dateFormat),
-            transcript: convertHtmlToText(transcript),
+            transcript: transcript,
             audio_link: audioLink,
-            summary: summary ? convertHtmlToText(summary.content.data) : null,
-            tidy: tidyTranscript ? convertHtmlToText(tidyTranscript.content.data) : null,
+            summary: summary ? summary.markdown_content : null,
+            tidy: tidy ? tidy.markdown_content : null,
             points: formattedPoints,
             todo: formattedTodos,
-            tweet: tweet ? convertHtmlToText(tweet.content.data) : null,
-            blog: blog ? convertHtmlToText(blog.content.data) : null,
-            email: email ? convertHtmlToText(email.content.data) : null,
-            custom: custom ? convertHtmlToText(custom.content.data) : null,
+            tweet: tweet ? tweet.markdown_content : null,
+            blog: blog ? blog.markdown_content : null,
+            email: email ? email.markdown_content : null,
+            custom: custom ? custom.markdown_content : null,
             tags: formattedTags,
             related_notes: recording.related_notes && recording.related_notes.length > 0
                 ? recording.related_notes.map((relatedNote: { title: string; created_at: string }) =>
@@ -337,9 +342,10 @@ export default class VoiceNotesPlugin extends Plugin {
         };
 
         // Render the template using Jinja
-        let note = jinja.render(this.settings.noteTemplate, context);
+        let note = jinja.render(this.settings.noteTemplate, context).replace(/\n{3,}/g, '\n\n');
+        note = convertHtmlEntitiesToMarkdown(note);
 
-        // Add default metadata
+        // Add default metadata or ensure recording_id is present
         if (this.settings.useDefaultFrontmatter) {
             const metadata = `---
 recording_id: ${recording.recording_id}
@@ -350,6 +356,22 @@ ${formatTags(recording)}
 ---\n`;
 
             note = metadata + note;
+        } else {
+            const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+            const match = note.match(frontmatterRegex);
+
+            if (match) {
+                // Frontmatter exists, update or add recording_id
+                const existingFrontmatter = match[1];
+                const updatedFrontmatter = existingFrontmatter.replace(/recording_id:.*\n?/, '') + `recording_id: ${recording.recording_id}\n`;
+                note = note.replace(frontmatterRegex, `---\n${updatedFrontmatter}---`);
+            } else {
+                // No frontmatter, create one with recording_id
+                const metadata = `---
+recording_id: ${recording.recording_id}
+---\n`;
+                note = metadata + note;
+            }
         }
 
         // Handle related notes and subnotes
