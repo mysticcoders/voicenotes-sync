@@ -131,9 +131,6 @@ export default class VoiceNotesPlugin extends Plugin {
     }
 
     async onload() {
-        /**
-         * Charge le plugin et initialise ses fonctionnalités.
-         */
         await this.loadSettings();
         this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
 

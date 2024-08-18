@@ -1,7 +1,6 @@
 import { moment } from 'obsidian';
 import * as crypto from 'crypto';
 import { promises as fs } from 'fs';
-import { htmlToText } from 'html-to-text';
 
 export function capitalizeFirstLetter(word: string): string {
   return word[0].toUpperCase() + word.slice(1);
