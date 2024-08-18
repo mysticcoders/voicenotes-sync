@@ -1,6 +1,6 @@
-import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
+import { App, DataAdapter, Editor, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
-import { getFilenameFromUrl, isToday, formatDuration, formatDate, formatTags } from './utils';
+import { getFilenameFromUrl, isToday, formatDuration, formatDate, formatTags, convertHtmlToText } from './utils';
 import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
 import { VoiceNotesSettingTab } from './settings';
@@ -308,18 +308,18 @@ export default class VoiceNotesPlugin extends Plugin {
         const formattedTags = recording.tags && recording.tags.length > 0 ? recording.tags.map((tag: { name: string }) => `#${tag.name}`).join(' ') : null;
 
         const context = {
-            title: title,
+            title: convertHtmlToText(title),
             date: formatDate(recording.created_at, this.settings.dateFormat),
-            transcript: transcript,
+            transcript: convertHtmlToText(transcript),
             audio_link: audioLink,
-            summary: summary ? summary.content.data : null,
-            tidy: tidyTranscript ? tidyTranscript.content.data : null,
+            summary: summary ? convertHtmlToText(summary.content.data) : null,
+            tidy: tidyTranscript ? convertHtmlToText(tidyTranscript.content.data) : null,
             points: formattedPoints,
             todo: formattedTodos,
-            tweet: tweet ? tweet.content.data : null,
-            blog: blog ? blog.content.data : null,
-            email: email ? email.content.data : null,
-            custom: custom ? custom.content.data : null,
+            tweet: tweet ? convertHtmlToText(tweet.content.data) : null,
+            blog: blog ? convertHtmlToText(blog.content.data) : null,
+            email: email ? convertHtmlToText(email.content.data) : null,
+            custom: custom ? convertHtmlToText(custom.content.data) : null,
             tags: formattedTags,
             related_notes: recording.related_notes && recording.related_notes.length > 0
                 ? recording.related_notes.map((relatedNote: { title: string; created_at: string }) =>
@@ -374,10 +374,6 @@ ${formatTags(recording)}
     }
 
     async sync(fullSync: boolean = false) {
-        /**
-         * Synchronise les enregistrements vocaux avec le serveur.
-         * @param {boolean} fullSync - Si true, effectue une synchronisation complète.
-         */
         console.debug(`Sync running full? ${fullSync}`);
 
         this.syncedRecordingIds = await this.getSyncedRecordingIds();
