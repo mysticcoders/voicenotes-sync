@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
 import VoiceNotesPlugin from './main';
+import { autoResizeTextArea } from './utils';
 
 export class VoiceNotesSettingTab extends PluginSettingTab {
   plugin: VoiceNotesPlugin;
@@ -229,15 +230,20 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Custom Note Template')
       .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{custom}}')
-      .addTextArea((text) =>
+      .addTextArea((text) => {
         text
           .setPlaceholder(this.plugin.settings.noteTemplate)
           .setValue(this.plugin.settings.noteTemplate)
           .onChange(async (value) => {
             this.plugin.settings.noteTemplate = value;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+        // Add autoresize to the textarea
+        text.inputEl.classList.add('autoresize');
+        autoResizeTextArea(text.inputEl);
+        text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
+        containerEl.appendChild(text.inputEl);
+      });
 
     new Setting(containerEl)
       .setName('Exclude Folders')
