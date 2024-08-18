@@ -105,7 +105,6 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     filenameTemplate: `
 {{date}} {{title}}
 `,
-    debugMode: false,
     excludeFolders: [],
     dateFormat: 'YYYY-MM-DD',
     prependDate: false

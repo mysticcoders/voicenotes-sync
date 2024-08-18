@@ -227,16 +227,6 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Debug Mode')
-      .setDesc('Enable debug mode for additional logging')
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
-          this.plugin.settings.debugMode = value;
-          await this.plugin.saveSettings();
-        })
-      );
-
-    new Setting(containerEl)
       .setName('Custom Note Template')
       .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy_transcript}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}} and {{custom}}\n(uncheck to add a custom frontmatter)')
       .addTextArea((text) => {

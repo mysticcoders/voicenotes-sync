@@ -18,7 +18,6 @@ export interface VoiceNotesPluginSettings {
   useDefaultFrontmatter: boolean;
   noteTemplate: string;
   filenameTemplate: string;
-  debugMode: boolean;
   excludeFolders: string[];
   dateFormat: string;
   prependDate: boolean;
