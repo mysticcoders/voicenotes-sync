@@ -82,8 +82,19 @@ export function autoResizeTextArea(textarea: HTMLTextAreaElement): void {
 }
 
 export function convertHtmlToText(html: string): string {
-  return htmlToText(html, {
+  // Convert HTML to text
+  let text = htmlToText(html, {
     wordwrap: false,
     preserveNewlines: true,
   });
+
+  // Replace common HTML entities
+  text = text.replace("&nbsp;", " ")
+    .replace("&amp;", "&")
+    .replace("&lt;", "<")
+    .replace("&gt;", ">")
+    .replace("&quot;", "\"")
+    .replace("&apos;", "'");
+
+  return text;
 }

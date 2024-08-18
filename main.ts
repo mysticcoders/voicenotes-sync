@@ -170,7 +170,11 @@ export default class VoiceNotesPlugin extends Plugin {
             })
         );
 
-        await this.sync(false);
+        // Timeout to give the app time to load
+        setTimeout(async () => {
+            this.syncedRecordingIds = await this.getSyncedRecordingIds();
+            await this.sync(this.syncedRecordingIds.length === 0);
+        }, 5000);
     }
 
     onunload() {
