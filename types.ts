@@ -18,7 +18,6 @@ export interface VoiceNotesPluginSettings {
   noteTemplate: string;
   filenameTemplate: string;
   debugMode: boolean;
-  syncInterval: number;
   excludeFolders: string[];
   dateFormat: string;
   prependDate: boolean;

@@ -195,7 +195,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       .setDesc('Format of the date used in the templates below (moment.js format)')
       .addText((text) =>
         text
-          .setPlaceholder('YYYY-MM-DD')
+          .setPlaceholder('DD/MM/YYYY HH:mm')
           .setValue(this.plugin.settings.dateFormat)
           .onChange(async (value) => {
             this.plugin.settings.dateFormat = value;
@@ -224,22 +224,6 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
           this.plugin.settings.debugMode = value;
           await this.plugin.saveSettings();
         })
-      );
-
-    new Setting(containerEl)
-      .setName('Sync Interval')
-      .setDesc('Interval in minutes for automatic synchronization')
-      .addText((text) =>
-        text
-          .setPlaceholder('30')
-          .setValue(String(this.plugin.settings.syncInterval))
-          .onChange(async (value) => {
-            const interval = parseInt(value, 10);
-            if (!isNaN(interval) && interval > 0) {
-              this.plugin.settings.syncInterval = interval;
-              await this.plugin.saveSettings();
-            }
-          })
       );
 
     new Setting(containerEl)

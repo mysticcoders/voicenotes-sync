@@ -1,6 +1,6 @@
 import { App, DataAdapter, Editor, moment, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
-import { getFilenameFromUrl, isToday, formatDuration, formatTags } from './utils';
+import { getFilenameFromUrl, isToday, formatDuration, formatDate, formatTags } from './utils';
 import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
 import { VoiceNotesSettingTab } from './settings';
@@ -89,7 +89,6 @@ Date: {{ date }}
 {{date}} {{title}}
 `,
     debugMode: false,
-    syncInterval: 30,
     excludeFolders: [],
     dateFormat: 'YYYY-MM-DD',
     prependDate: false
@@ -99,10 +98,9 @@ export default class VoiceNotesPlugin extends Plugin {
     settings: VoiceNotesPluginSettings;
     vnApi: VoiceNotesApi;
     fs: DataAdapter;
-    syncInterval: number;
     timeSinceSync: number = 0;
-
     syncedRecordingIds: number[];
+    syncIntervalId: NodeJS.Timeout | null = null;
 
     ONE_SECOND = 1000;
 
@@ -112,10 +110,13 @@ export default class VoiceNotesPlugin extends Plugin {
     }
 
     async onload() {
-        window.clearInterval(this.syncInterval);
-
+        /**
+         * Charge le plugin et initialise ses fonctionnalités.
+         */
         await this.loadSettings();
         this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
+
+        this.setupAutoSync();
 
         this.addCommand({
             id: 'manual-sync-voicenotes',
@@ -158,7 +159,7 @@ export default class VoiceNotesPlugin extends Plugin {
 
     onunload() {
         this.syncedRecordingIds = [];
-        window.clearInterval(this.syncInterval);
+        this.clearAutoSync();
     }
 
     async loadSettings() {
@@ -167,6 +168,23 @@ export default class VoiceNotesPlugin extends Plugin {
 
     async saveSettings() {
         await this.saveData(this.settings);
+        this.setupAutoSync();
+    }
+
+    setupAutoSync() {
+        this.clearAutoSync();
+        if (this.settings.automaticSync) {
+            this.syncIntervalId = setInterval(() => {
+                this.sync();
+            }, this.settings.syncTimeout * 60 * 1000);
+        }
+    }
+
+    clearAutoSync() {
+        if (this.syncIntervalId) {
+            clearInterval(this.syncIntervalId);
+            this.syncIntervalId = null;
+        }
     }
 
     async getRecordingIdFromFile(file: TFile): Promise<number | undefined> {
@@ -178,7 +196,7 @@ export default class VoiceNotesPlugin extends Plugin {
     }
 
     sanitizedTitle(title: string, created_at: string): string {
-        const date = moment(created_at).format(this.settings.dateFormat);
+        const date = formatDate(created_at, this.settings.prependDateFormat);
         const generatedTitle = this.settings.filenameTemplate
             .replace('{{date}}', date)
             .replace('{{title}}', title);
@@ -274,7 +292,7 @@ export default class VoiceNotesPlugin extends Plugin {
 
         const context = {
             title: title,
-            date: moment(recording.created_at).format(this.settings.dateFormat),
+            date: formatDate(recording.created_at, this.settings.dateFormat),
             transcript: transcript,
             audio_link: audioLink,
             summary: summary ? summary.content.data : null,
@@ -306,8 +324,8 @@ export default class VoiceNotesPlugin extends Plugin {
         const metadata = `---
     recording_id: ${recording.recording_id}
     duration: ${formatDuration(recording.duration)}
-    created_at: ${recording.created_at}
-    updated_at: ${recording.updated_at}
+    created_at: ${formatDate(recording.created_at, this.settings.dateFormat)}
+    updated_at: ${formatDate(recording.updated_at, this.settings.dateFormat)}
     ${formatTags(recording)}
 ---\n`;
 
@@ -337,6 +355,10 @@ export default class VoiceNotesPlugin extends Plugin {
     }
 
     async sync(fullSync: boolean = false) {
+        /**
+         * Synchronise les enregistrements vocaux avec le serveur.
+         * @param {boolean} fullSync - Si true, effectue une synchronisation complète.
+         */
         console.debug(`Sync running full? ${fullSync}`);
 
         this.syncedRecordingIds = await this.getSyncedRecordingIds();
@@ -369,20 +391,6 @@ export default class VoiceNotesPlugin extends Plugin {
             for (const recording of recordings.data) {
                 await this.processNote(recording, voiceNotesDir);
             }
-        }
-
-        window.clearInterval(this.syncInterval);
-
-        if (this.settings.automaticSync) {
-            console.debug(`timeSinceSync ${this.timeSinceSync} - syncTimeout: ${this.settings.syncTimeout}`);
-            this.syncInterval = window.setInterval(() => {
-                this.timeSinceSync += this.ONE_SECOND;
-
-                if (this.timeSinceSync >= this.settings.syncTimeout * 60 * 1000) {
-                    this.timeSinceSync = 0;
-                    this.sync();
-                }
-            }, this.ONE_SECOND);
         }
     }
 }

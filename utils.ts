@@ -57,6 +57,15 @@ export function formatDuration(durationMs: number): string {
   }
 }
 
+export function formatDate(date: string, dateFormat: string): string {
+  try {
+    return moment(date).format(dateFormat);
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return date;
+  }
+}
+
 export function formatTags(recording: any): string {
   if (recording.tags && recording.tags.length > 0) {
     return `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}`;
