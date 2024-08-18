@@ -17,73 +17,90 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     reallyDeleteSynced: false,
     todoTag: '',
     prependDateFormat: 'YYYY-MM-DD',
+    useDefaultFrontmatter: true,
     noteTemplate: `
-# {{ title }}
-
-Date: {{ date }}
-
-{% if summary %}
-## Summary
-
-{{ summary }}
-{% endif %}
-
-{% if points %}
-## Main points
-
-{{ points }}
-{% endif %}
-
-{% if attachments %}
-## Attachments
-
-{{ attachments }}
-{% endif %}
-
-## Transcript
-
-{{ transcript }}
-
-{% if audio_link %}
-[Audio]({{ audio_link }})
-{% endif %}
-
-{% if todo %}
-## Todos
-
-{{ todo }}
-{% endif %}
-
-{% if email %}
-## Email
-
-{{ email }}
-{% endif %}
-
-{% if custom %}
-## Others
-
-{{ custom }}
-{% endif %}
-
-{% if tags %}
-## Tags
-
-{{ tags }}
-{% endif %}
-
-{% if related_notes %}
-# Related Notes
-
-{{ related_notes }}
-{% endif %}
-
-{% if subnotes %}
-## Subnotes
-
-{{ subnotes }}
-{% endif %}
-`,
+    # {{ title }}
+    
+    Date: {{ date }}
+    
+    {% if summary %}
+    ## Summary
+    
+    {{ summary }}
+    {% endif %}
+    
+    {% if points %}
+    ## Main points
+    
+    {{ points }}
+    {% endif %}
+    
+    {% if attachments %}
+    ## Attachments
+    
+    {{ attachments }}
+    {% endif %}
+    
+    ## Transcript
+    
+    {% if tidy %}
+    {{ tidy }}
+    {% else %}
+    {{ transcript }}
+    {% endif %}
+    
+    {% if audio_link %}
+    [Audio]({{ audio_link }})
+    {% endif %}
+    
+    {% if todo %}
+    ## Todos
+    
+    {{ todo }}
+    {% endif %}
+    
+    {% if email %}
+    ## Email
+    
+    {{ email }}
+    {% endif %}
+    
+    {% if blog %}
+    ## Blog
+    
+    {{ blog }}
+    {% endif %}
+    
+    {% if tweet %}
+    ## Tweet
+    
+    {{ tweet }}
+    {% endif %}
+    
+    {% if custom %}
+    ## Others
+    
+    {{ custom }}
+    {% endif %}
+    
+    {% if tags %}
+    ## Tags
+    
+    {{ tags }}
+    {% endif %}
+    
+    {% if related_notes %}
+    # Related Notes
+    
+    {{ related_notes }}
+    {% endif %}
+    
+    {% if subnotes %}
+    ## Subnotes
+    
+    {{ subnotes }}
+    {% endif %}
+    `,
 
     filenameTemplate: `
 {{date}} {{title}}
@@ -320,16 +337,18 @@ export default class VoiceNotesPlugin extends Plugin {
         // Render the template using Jinja
         let note = jinja.render(this.settings.noteTemplate, context);
 
-        // Add metadata
-        const metadata = `---
-    recording_id: ${recording.recording_id}
-    duration: ${formatDuration(recording.duration)}
-    created_at: ${formatDate(recording.created_at, this.settings.dateFormat)}
-    updated_at: ${formatDate(recording.updated_at, this.settings.dateFormat)}
-    ${formatTags(recording)}
+        // Add default metadata
+        if (this.settings.useDefaultFrontmatter) {
+            const metadata = `---
+recording_id: ${recording.recording_id}
+duration: ${formatDuration(recording.duration)}
+created_at: ${formatDate(recording.created_at, this.settings.dateFormat)}
+updated_at: ${formatDate(recording.updated_at, this.settings.dateFormat)}
+${formatTags(recording)}
 ---\n`;
 
-        note = metadata + note;
+            note = metadata + note;
+        }
 
         // Handle related notes and subnotes
         if (!isSubnote) {

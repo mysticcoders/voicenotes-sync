@@ -229,7 +229,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Custom Note Template')
-      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{custom}}')
+      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy_transcript}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}} and {{custom}}\n(uncheck to add a custom frontmatter)')
       .addTextArea((text) => {
         text
           .setPlaceholder(this.plugin.settings.noteTemplate)
@@ -243,6 +243,14 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         autoResizeTextArea(text.inputEl);
         text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
         containerEl.appendChild(text.inputEl);
+      })
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.useDefaultFrontmatter)
+          .onChange(async (value) => {
+            this.plugin.settings.useDefaultFrontmatter = value;
+            await this.plugin.saveSettings();
+          });
       });
 
     new Setting(containerEl)

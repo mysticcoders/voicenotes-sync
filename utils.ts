@@ -1,6 +1,7 @@
 import { moment } from 'obsidian';
 import * as crypto from 'crypto';
 import { promises as fs } from 'fs';
+import { htmlToText } from 'html-to-text';
 
 export function capitalizeFirstLetter(word: string): string {
   return word[0].toUpperCase() + word.slice(1);
@@ -77,5 +78,12 @@ export function autoResizeTextArea(textarea: HTMLTextAreaElement): void {
   requestAnimationFrame(() => {
     textarea.style.height = 'auto';
     textarea.style.height = `${textarea.scrollHeight}px`;
+  });
+}
+
+export function convertHtmlToText(html: string): string {
+  return htmlToText(html, {
+    wordwrap: false,
+    preserveNewlines: true,
   });
 }
