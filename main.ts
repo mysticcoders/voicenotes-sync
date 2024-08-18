@@ -170,8 +170,7 @@ export default class VoiceNotesPlugin extends Plugin {
             })
         );
 
-        this.syncedRecordingIds = await this.getSyncedRecordingIds();
-        await this.sync(this.syncedRecordingIds.length === 0);
+        await this.sync(false);
     }
 
     onunload() {
@@ -192,7 +191,7 @@ export default class VoiceNotesPlugin extends Plugin {
         this.clearAutoSync();
         if (this.settings.automaticSync) {
             this.syncIntervalId = setInterval(() => {
-                this.sync();
+                this.sync(false);
             }, this.settings.syncTimeout * 60 * 1000);
         }
     }
