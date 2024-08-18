@@ -89,12 +89,18 @@ export function convertHtmlToText(html: string): string {
   });
 
   // Replace common HTML entities
-  text = text.replace("&nbsp;", " ")
-    .replace("&amp;", "&")
-    .replace("&lt;", "<")
-    .replace("&gt;", ">")
-    .replace("&quot;", "\"")
-    .replace("&apos;", "'");
+  const entities: { [key: string]: string } = {
+    '&quot;': '"',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&nbsp;': ' ',
+    '&#39;': "'",
+  };
+
+  for (const [entity, replacement] of Object.entries(entities)) {
+    text = text.replace(new RegExp(entity, 'g'), replacement);
+  }
 
   return text;
 }

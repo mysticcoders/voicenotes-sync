@@ -137,8 +137,17 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
           .setPlaceholder('30')
           .setValue(`${this.plugin.settings.syncTimeout}`)
           .onChange(async (value) => {
-            this.plugin.settings.syncTimeout = Number(value);
-            await this.plugin.saveSettings();
+            const numericValue = Number(value);
+            const inputElement = text.inputEl;
+
+            if (isNaN(numericValue) || numericValue < 1) {
+              inputElement.style.backgroundColor = 'red';
+              new Notice('Please enter a number greater than or equal to 1');
+            } else {
+              inputElement.style.backgroundColor = '';
+              this.plugin.settings.syncTimeout = numericValue;
+              await this.plugin.saveSettings();
+            }
           });
         text.inputEl.type = 'number';
         return text;
