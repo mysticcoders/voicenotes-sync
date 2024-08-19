@@ -228,7 +228,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Custom Note Template')
-      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}} and {{custom}}\n(uncheck to add a custom frontmatter)')
+      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}}, {{custom}}, {{parent_note}} and {{related_notes}} (uncheck to add a custom frontmatter)')
       .addTextArea((text) => {
         text
           .setPlaceholder(this.plugin.settings.noteTemplate)

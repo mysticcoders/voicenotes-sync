@@ -20,8 +20,7 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
     todoTag: '',
     prependDateFormat: 'YYYY-MM-DD',
     useDefaultFrontmatter: true,
-    noteTemplate: `
-# {{ title }}
+    noteTemplate: `# {{ title }}
 
 Date: {{ date }}
 
@@ -100,12 +99,17 @@ Date: {{ date }}
 {{ related_notes }}
 {% endif %}
 
+{% if parent_note %}
+## Parent Note
+
+- {{ parent_note }}
+{% endif %}
+
 {% if subnotes %}
 ## Subnotes
 
 {{ subnotes }}
-{% endif %}
-`,
+{% endif %}`,
 
     filenameTemplate: `
 {{date}} {{title}}
@@ -249,102 +253,104 @@ export default class VoiceNotesPlugin extends Plugin {
         ).filter((filename) => filename !== undefined) as string[];
     }
 
-    async processNote(recording: any, voiceNotesDir: string, isSubnote: boolean = false): Promise<void> {
+    async processNote(recording: any, voiceNotesDir: string, isSubnote: boolean = false, parentTitle: string = ''): Promise<void> {
         if (!recording.title) {
             new Notice(`Unable to grab voice recording with id: ${recording.id}`);
-            return;
-        }
-
-        if (this.syncedRecordingIds.includes(recording.recording_id)) {
             return;
         }
 
         const title = this.sanitizedTitle(recording.title, recording.created_at);
         const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`);
 
-        // Prepare data for the template
-        const creationTypes = ['summary', 'points', 'tidy', 'todo', 'tweet', 'blog', 'email', 'custom'];
-        const creations = Object.fromEntries(
-            creationTypes.map(type => [type, recording.creations.find((creation: { type: string }) => creation.type === type)])
-        );
+        // Vérifier si la note existe déjà
+        const noteExists = await this.app.vault.adapter.exists(recordingPath);
 
-        const { transcript } = recording;
+        // Si la note n'existe pas ou si c'est une sous-note, on la traite
+        if (!noteExists || isSubnote) {
+            // Prepare data for the template
+            const creationTypes = ['summary', 'points', 'tidy', 'todo', 'tweet', 'blog', 'email', 'custom'];
+            const creations = Object.fromEntries(
+                creationTypes.map(type => [type, recording.creations.find((creation: { type: string }) => creation.type === type)])
+            );
 
-        // Destructure creations object to get individual variables if needed
-        const { summary, points, tidy, todo, tweet, blog, email, custom } = creations;
+            const { transcript } = recording;
 
-        let audioLink = '';
-        if (this.settings.downloadAudio) {
-            const audioPath = normalizePath(`${voiceNotesDir}/audio`);
-            if (!await this.app.vault.adapter.exists(audioPath)) {
-                await this.app.vault.createFolder(audioPath);
-            }
-            const outputLocationPath = normalizePath(`${audioPath}/${recording.recording_id}.mp3`);
-            if (!await this.app.vault.adapter.exists(outputLocationPath)) {
-                const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id);
-                await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
-            }
-            audioLink = `![[${recording.recording_id}.mp3]]`;
-        }
+            // Destructure creations object to get individual variables if needed
+            const { summary, points, tidy, todo, tweet, blog, email, custom } = creations;
 
-        // Handle attachments
-        let attachments = '';
-        if (recording.attachments && recording.attachments.length > 0) {
-            const attachmentsPath = normalizePath(`${voiceNotesDir}/attachments`);
-            if (!await this.app.vault.adapter.exists(attachmentsPath)) {
-                await this.app.vault.createFolder(attachmentsPath);
-            }
-            attachments = (await Promise.all(recording.attachments.map(async (data: any) => {
-                if (data.type === 1) {
-                    return `- ${data.description}`;
-                } else if (data.type === 2) {
-                    const filename = getFilenameFromUrl(data.url);
-                    const attachmentPath = normalizePath(`${attachmentsPath}/${filename}`);
-                    await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
-                    return `- ![[${filename}]]`;
+            let audioLink = '';
+            if (this.settings.downloadAudio) {
+                const audioPath = normalizePath(`${voiceNotesDir}/audio`);
+                if (!await this.app.vault.adapter.exists(audioPath)) {
+                    await this.app.vault.createFolder(audioPath);
                 }
-            }))).join('\n');
-        }
+                const outputLocationPath = normalizePath(`${audioPath}/${recording.recording_id}.mp3`);
+                if (!await this.app.vault.adapter.exists(outputLocationPath)) {
+                    const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id);
+                    await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
+                }
+                audioLink = `![[${recording.recording_id}.mp3]]`;
+            }
 
-        // Prepare context for Jinja template
-        const formattedPoints = points ? points.content.data.map((data: string) => `- ${data}`).join('\n') : null;
-        const formattedTodos = todo ? todo.content.data.map((data: string) => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n') : null;
-        const formattedTags = recording.tags && recording.tags.length > 0 ? recording.tags.map((tag: { name: string }) => `#${tag.name}`).join(' ') : null;
+            // Handle attachments
+            let attachments = '';
+            if (recording.attachments && recording.attachments.length > 0) {
+                const attachmentsPath = normalizePath(`${voiceNotesDir}/attachments`);
+                if (!await this.app.vault.adapter.exists(attachmentsPath)) {
+                    await this.app.vault.createFolder(attachmentsPath);
+                }
+                attachments = (await Promise.all(recording.attachments.map(async (data: any) => {
+                    if (data.type === 1) {
+                        return `- ${data.description}`;
+                    } else if (data.type === 2) {
+                        const filename = getFilenameFromUrl(data.url);
+                        const attachmentPath = normalizePath(`${attachmentsPath}/${filename}`);
+                        await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
+                        return `- ![[${filename}]]`;
+                    }
+                }))).join('\n');
+            }
 
-        const context = {
-            title: title,
-            date: formatDate(recording.created_at, this.settings.dateFormat),
-            transcript: transcript,
-            audio_link: audioLink,
-            summary: summary ? summary.markdown_content : null,
-            tidy: tidy ? tidy.markdown_content : null,
-            points: formattedPoints,
-            todo: formattedTodos,
-            tweet: tweet ? tweet.markdown_content : null,
-            blog: blog ? blog.markdown_content : null,
-            email: email ? email.markdown_content : null,
-            custom: custom ? custom.markdown_content : null,
-            tags: formattedTags,
-            related_notes: recording.related_notes && recording.related_notes.length > 0
-                ? recording.related_notes.map((relatedNote: { title: string; created_at: string }) =>
-                    `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`
-                ).join('\n')
-                : null,
-            subnotes: recording.subnotes && recording.subnotes.length > 0
-                ? recording.subnotes.map((subnote: { title: string; created_at: string }) =>
-                    `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]`
-                ).join('\n')
-                : null,
-            attachments: attachments,
-        };
+            // Prepare context for Jinja template
+            const formattedPoints = points ? points.content.data.map((data: string) => `- ${data}`).join('\n') : null;
+            const formattedTodos = todo ? todo.content.data.map((data: string) => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n') : null;
+            const formattedTags = recording.tags && recording.tags.length > 0 ? recording.tags.map((tag: { name: string }) => `#${tag.name}`).join(' ') : null;
 
-        // Render the template using Jinja
-        let note = jinja.render(this.settings.noteTemplate, context).replace(/\n{3,}/g, '\n\n');
-        note = convertHtmlEntitiesToMarkdown(note);
+            const context = {
+                title: title,
+                date: formatDate(recording.created_at, this.settings.dateFormat),
+                transcript: transcript,
+                audio_link: audioLink,
+                summary: summary ? summary.markdown_content : null,
+                tidy: tidy ? tidy.markdown_content : null,
+                points: formattedPoints,
+                todo: formattedTodos,
+                tweet: tweet ? tweet.markdown_content : null,
+                blog: blog ? blog.markdown_content : null,
+                email: email ? email.markdown_content : null,
+                custom: custom ? custom.markdown_content : null,
+                tags: formattedTags,
+                related_notes: recording.related_notes && recording.related_notes.length > 0
+                    ? recording.related_notes.map((relatedNote: { title: string; created_at: string }) =>
+                        `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`
+                    ).join('\n')
+                    : null,
+                subnotes: recording.subnotes && recording.subnotes.length > 0
+                    ? recording.subnotes.map((subnote: { title: string; created_at: string }) =>
+                        `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]`
+                    ).join('\n')
+                    : null,
+                attachments: attachments,
+                parent_note: isSubnote ? `[[${parentTitle}]]` : null,
+            };
 
-        // Add default metadata or ensure recording_id is present
-        if (this.settings.useDefaultFrontmatter) {
-            const metadata = `---
+            // Render the template using Jinja
+            let note = jinja.render(this.settings.noteTemplate, context).replace(/\n{3,}/g, '\n\n');
+            note = convertHtmlEntitiesToMarkdown(note);
+
+            // Add default metadata or ensure recording_id is present
+            if (this.settings.useDefaultFrontmatter) {
+                const metadata = `---
 recording_id: ${recording.recording_id}
 duration: ${formatDuration(recording.duration)}
 created_at: ${formatDate(recording.created_at, this.settings.dateFormat)}
@@ -352,45 +358,46 @@ updated_at: ${formatDate(recording.updated_at, this.settings.dateFormat)}
 ${formatTags(recording)}
 ---\n`;
 
-            note = metadata + note;
-        } else {
-            const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-            const match = note.match(frontmatterRegex);
-
-            if (match) {
-                // Frontmatter exists, update or add recording_id
-                const existingFrontmatter = match[1];
-                const updatedFrontmatter = existingFrontmatter.replace(/recording_id:.*\n?/, '') + `recording_id: ${recording.recording_id}\n`;
-                note = note.replace(frontmatterRegex, `---\n${updatedFrontmatter}---`);
+                note = metadata + note;
             } else {
-                // No frontmatter, create one with recording_id
-                const metadata = `---
+                const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+                const match = note.match(frontmatterRegex);
+
+                if (match) {
+                    // Frontmatter exists, update or add recording_id
+                    const existingFrontmatter = match[1];
+                    const updatedFrontmatter = existingFrontmatter.replace(/recording_id:.*\n?/, '') + `recording_id: ${recording.recording_id}\n`;
+                    note = note.replace(frontmatterRegex, `---\n${updatedFrontmatter}---`);
+                } else {
+                    // No frontmatter, create one with recording_id
+                    const metadata = `---
 recording_id: ${recording.recording_id}
 ---\n`;
-                note = metadata + note;
-            }
-        }
-
-        // Handle related notes and subnotes
-        if (!isSubnote) {
-            if (recording.subnotes && recording.subnotes.length > 0) {
-                for (const subnote of recording.subnotes) {
-                    await this.processNote(subnote, voiceNotesDir, true);
+                    note = metadata + note;
                 }
             }
-        }
 
-        // Create or update the note file
-        if (await this.app.vault.adapter.exists(recordingPath)) {
-            await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath) as TFile, note);
-        } else {
-            await this.app.vault.create(recordingPath, note);
-        }
+            // Traiter les sous-notes, qu'elles existent déjà ou non
+            if (recording.subnotes && recording.subnotes.length > 0) {
+                for (const subnote of recording.subnotes) {
+                    await this.processNote(subnote, voiceNotesDir, true, title);
+                }
+            }
 
-        this.syncedRecordingIds.push(recording.recording_id);
+            // Créer ou mettre à jour la note
+            if (noteExists) {
+                await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath) as TFile, note);
+            } else {
+                await this.app.vault.create(recordingPath, note);
+            }
 
-        if (this.settings.deleteSynced && this.settings.reallyDeleteSynced) {
-            await this.vnApi.deleteRecording(recording.recording_id);
+            if (!this.syncedRecordingIds.includes(recording.recording_id)) {
+                this.syncedRecordingIds.push(recording.recording_id);
+            }
+
+            if (this.settings.deleteSynced && this.settings.reallyDeleteSynced) {
+                await this.vnApi.deleteRecording(recording.recording_id);
+            }
         }
     }
 
