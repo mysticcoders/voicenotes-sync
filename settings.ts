@@ -108,22 +108,21 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       new Setting(containerEl)
         .setName('Force Sync')
         .setDesc(
-          "Manual synchronization -- only use the overwrite manual sync if you're ok with overwriting already synced notes"
+          "Manual synchronization -- Prefer using the quick sync option unless you're having issues with syncing. Full synchronization will sync all notes, not just the last ten."
         )
         .addButton((button) =>
-          button.setButtonText('Manual sync').onClick(async () => {
-            new Notice('Performing manual synchronization without overwriting existing work.');
+          button.setButtonText('Manual sync (quick)').onClick(async () => {
+            new Notice('Performing manual synchronization of the last ten notes.');
             await this.plugin.sync();
-            new Notice('Manual synchronization has completed.');
+            new Notice('Manual quick synchronization has completed.');
           })
         )
         .addButton((button) =>
-          button.setButtonText('Manual sync (overwrite)').onClick(async () => {
-            // Upon a manual sync we are going to forget about existing data so we can sync all again
-            new Notice('Performing manual synchronization and overwriting all notes.');
+          button.setButtonText('Manual sync (full)').onClick(async () => {
+            new Notice('Performing manual synchronization of all notes.');
             this.plugin.syncedRecordingIds = [];
             await this.plugin.sync(true);
-            new Notice('Manual synchronization with overwrite has completed.');
+            new Notice('Manual full synchronization has completed.');
           })
         );
     }
