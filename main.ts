@@ -262,10 +262,10 @@ export default class VoiceNotesPlugin extends Plugin {
         const title = this.sanitizedTitle(recording.title, recording.created_at);
         const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`);
 
-        // Vérifier si la note existe déjà
+        // Check if the note already exists
         const noteExists = await this.app.vault.adapter.exists(recordingPath);
 
-        // Si la note n'existe pas ou si c'est une sous-note, on la traite
+        // If the note doesn't exist, or if it's a sub-note, it's treated as follows
         if (!noteExists || isSubnote) {
             // Prepare data for the template
             const creationTypes = ['summary', 'points', 'tidy', 'todo', 'tweet', 'blog', 'email', 'custom'];
@@ -377,14 +377,14 @@ recording_id: ${recording.recording_id}
                 }
             }
 
-            // Traiter les sous-notes, qu'elles existent déjà ou non
+            // Process sub-notes, whether they already exist or not
             if (recording.subnotes && recording.subnotes.length > 0) {
                 for (const subnote of recording.subnotes) {
                     await this.processNote(subnote, voiceNotesDir, true, title);
                 }
             }
 
-            // Créer ou mettre à jour la note
+            // Create or update note
             if (noteExists) {
                 await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath) as TFile, note);
             } else {
