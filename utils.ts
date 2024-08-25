@@ -68,7 +68,7 @@ export function formatDate(date: string, dateFormat: string): string {
 
 export function formatTags(recording: any): string {
   if (recording.tags && recording.tags.length > 0) {
-    return `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}`;
+    return `tags: ${recording.tags.map((tag: { name: string }) => tag.name.replace(/\s+/g, '-')).join(',')}`;
   }
   return '';
 }

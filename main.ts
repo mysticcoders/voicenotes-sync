@@ -327,8 +327,10 @@ export default class VoiceNotesPlugin extends Plugin {
             // Prepare context for Jinja template
             const formattedPoints = points ? points.content.data.map((data: string) => `- ${data}`).join('\n') : null;
             const formattedTodos = todo ? todo.content.data.map((data: string) => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`).join('\n') : null;
-            const formattedTags = recording.tags && recording.tags.length > 0 ? recording.tags.map((tag: { name: string }) => `#${tag.name}`).join(' ') : null;
-
+            // Format tags, replacing spaces with hyphens for multi-word tags
+            const formattedTags = recording.tags && recording.tags.length > 0
+                ? recording.tags.map((tag: { name: string }) => `#${tag.name.replace(/\s+/g, '-')}`).join(' ')
+                : null;
             const context = {
                 title: title,
                 date: formatDate(recording.created_at, this.settings.dateFormat),
