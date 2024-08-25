@@ -114,7 +114,7 @@ Date: {{ date }}
     filenameTemplate: `
 {{date}} {{title}}
 `,
-    excludeFolders: [],
+    excludeTags: [],
     dateFormat: 'YYYY-MM-DD',
     prependDate: false
 };
@@ -253,7 +253,7 @@ export default class VoiceNotesPlugin extends Plugin {
         ).filter((filename) => filename !== undefined) as string[];
     }
 
-    async processNote(recording: any, voiceNotesDir: string, isSubnote: boolean = false, parentTitle: string = ''): Promise<void> {
+    async processNote(recording: any, voiceNotesDir: string, isSubnote: boolean = false, parentTitle: string = '', unsyncedCount: { count: number }): Promise<void> {
         if (!recording.title) {
             new Notice(`Unable to grab voice recording with id: ${recording.id}`);
             return;
@@ -261,6 +261,19 @@ export default class VoiceNotesPlugin extends Plugin {
 
         const title = this.sanitizedTitle(recording.title, recording.created_at);
         const recordingPath = normalizePath(`${voiceNotesDir}/${title}.md`);
+
+        // Process sub-notes, whether the note already exists or not
+        if (recording.subnotes && recording.subnotes.length > 0) {
+            for (const subnote of recording.subnotes) {
+                await this.processNote(subnote, voiceNotesDir, true, title, unsyncedCount);
+            }
+        }
+
+        // Check if the recording contains any excluded tags
+        if (recording.tags && recording.tags.some((tag: { name: string }) => this.settings.excludeTags.includes(tag.name))) {
+            unsyncedCount.count++;
+            return;
+        }
 
         // Check if the note already exists
         const noteExists = await this.app.vault.adapter.exists(recordingPath);
@@ -377,13 +390,6 @@ recording_id: ${recording.recording_id}
                 }
             }
 
-            // Process sub-notes, whether they already exist or not
-            if (recording.subnotes && recording.subnotes.length > 0) {
-                for (const subnote of recording.subnotes) {
-                    await this.processNote(subnote, voiceNotesDir, true, title);
-                }
-            }
-
             // Create or update note
             if (noteExists) {
                 await this.app.vault.modify(this.app.vault.getFileByPath(recordingPath) as TFile, note);
@@ -416,6 +422,7 @@ recording_id: ${recording.recording_id}
         }
 
         const recordings = await this.vnApi.getRecordings();
+        let unsyncedCount = { count: 0 };
 
         if (fullSync && recordings.links.next) {
             let nextPage = recordings.links.next;
@@ -432,8 +439,10 @@ recording_id: ${recording.recording_id}
         if (recordings) {
             new Notice(`Syncing latest Voicenotes`);
             for (const recording of recordings.data) {
-                await this.processNote(recording, voiceNotesDir);
+                await this.processNote(recording, voiceNotesDir, false, '', unsyncedCount);
             }
         }
+
+        new Notice(`Sync complete. ${unsyncedCount.count} recordings were not synced due to excluded tags.`);
     }
 }

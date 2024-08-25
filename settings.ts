@@ -108,7 +108,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       new Setting(containerEl)
         .setName('Force Sync')
         .setDesc(
-          "Manual synchronization -- Prefer using the quick sync option unless you're having issues with syncing. Full synchronization will sync all notes, not just the last ten."
+          "Manual synchronization -- Prefer using the quick sync option unless you're having issues with syncing. Full synchronization will sync all notes, not just the last ten but can be much slower."
         )
         .addButton((button) =>
           button.setButtonText('Manual sync (quick)').onClick(async () => {
@@ -252,14 +252,14 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName('Exclude Folders')
-      .setDesc('Comma-separated list of folders to exclude from syncing')
+      .setName('Exclude Tags')
+      .setDesc('Comma-separated list of tags to exclude from syncing')
       .addText((text) =>
         text
-          .setPlaceholder('Archive, Drafts')
-          .setValue(this.plugin.settings.excludeFolders.join(', '))
+          .setPlaceholder('archive, trash')
+          .setValue(this.plugin.settings.excludeTags.join(', '))
           .onChange(async (value) => {
-            this.plugin.settings.excludeFolders = value.split(',').map((folder) => folder.trim());
+            this.plugin.settings.excludeTags = value.split(',').map((folder) => folder.trim());
             await this.plugin.saveSettings();
           })
       );
