@@ -57,9 +57,47 @@ export function formatDuration(durationMs: number): string {
   }
 }
 
+export function formatDate(date: string, dateFormat: string): string {
+  try {
+    return moment(date).format(dateFormat);
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return date;
+  }
+}
+
 export function formatTags(recording: any): string {
   if (recording.tags && recording.tags.length > 0) {
-    return `tags: ${recording.tags.map((tag: { name: string }) => tag.name).join(',')}`;
+    return `tags: ${recording.tags.map((tag: { name: string }) => tag.name.replace(/\s+/g, '-')).join(',')}`;
   }
   return '';
+}
+
+export function autoResizeTextArea(textarea: HTMLTextAreaElement): void {
+  requestAnimationFrame(() => {
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  });
+}
+
+export function convertHtmlToMarkdown(text: string): string {
+  const htmlEntities: { [key: string]: string } = {
+    '&lt;': '<',
+    '&gt;': '>',
+    '&amp;': '&',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&nbsp;': ' ',
+  };
+
+  // Convert HTML entities
+  let markdown = text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => htmlEntities[entity] || entity);
+
+  // Convert <br/> tags to newlines
+  markdown = markdown.replace(/<br\s*\/?>/gi, '\n');
+
+  // Remove other HTML tags
+  markdown = markdown.replace(/<\/?[^>]+(>|$)/g, '');
+
+  return markdown.trim();
 }

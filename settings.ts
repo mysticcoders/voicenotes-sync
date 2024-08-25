@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
 import VoiceNotesPlugin from './main';
+import { autoResizeTextArea } from './utils';
 
 export class VoiceNotesSettingTab extends PluginSettingTab {
   plugin: VoiceNotesPlugin;
@@ -107,22 +108,21 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       new Setting(containerEl)
         .setName('Force Sync')
         .setDesc(
-          "Manual synchronization -- only use the overwrite manual sync if you're ok with overwriting already synced notes"
+          "Manual synchronization -- Prefer using the quick sync option unless you're having issues with syncing. Full synchronization will sync all notes, not just the last ten but can be much slower."
         )
         .addButton((button) =>
-          button.setButtonText('Manual sync').onClick(async () => {
-            new Notice('Performing manual synchronization without overwriting existing work.');
+          button.setButtonText('Manual sync (quick)').onClick(async () => {
+            new Notice('Performing manual synchronization of the last ten notes.');
             await this.plugin.sync();
-            new Notice('Manual synchronization has completed.');
+            new Notice('Manual quick synchronization has completed.');
           })
         )
         .addButton((button) =>
-          button.setButtonText('Manual sync (overwrite)').onClick(async () => {
-            // Upon a manual sync we are going to forget about existing data so we can sync all again
-            new Notice('Performing manual synchronization and overwriting all notes.');
+          button.setButtonText('Manual sync (full)').onClick(async () => {
+            new Notice('Performing manual synchronization of all notes.');
             this.plugin.syncedRecordingIds = [];
             await this.plugin.sync(true);
-            new Notice('Manual synchronization with overwrite has completed.');
+            new Notice('Manual full synchronization has completed.');
           })
         );
     }
@@ -136,8 +136,17 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
           .setPlaceholder('30')
           .setValue(`${this.plugin.settings.syncTimeout}`)
           .onChange(async (value) => {
-            this.plugin.settings.syncTimeout = Number(value);
-            await this.plugin.saveSettings();
+            const numericValue = Number(value);
+            const inputElement = text.inputEl;
+
+            if (isNaN(numericValue) || numericValue < 1) {
+              inputElement.style.backgroundColor = 'red';
+              new Notice('Please enter a number greater than or equal to 1');
+            } else {
+              inputElement.style.backgroundColor = '';
+              this.plugin.settings.syncTimeout = numericValue;
+              await this.plugin.saveSettings();
+            }
           });
         text.inputEl.type = 'number';
         return text;
@@ -217,53 +226,40 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Debug Mode')
-      .setDesc('Enable debug mode for additional logging')
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
-          this.plugin.settings.debugMode = value;
-          await this.plugin.saveSettings();
-        })
-      );
-
-    new Setting(containerEl)
-      .setName('Sync Interval')
-      .setDesc('Interval in minutes for automatic synchronization')
-      .addText((text) =>
-        text
-          .setPlaceholder('30')
-          .setValue(String(this.plugin.settings.syncInterval))
-          .onChange(async (value) => {
-            const interval = parseInt(value, 10);
-            if (!isNaN(interval) && interval > 0) {
-              this.plugin.settings.syncInterval = interval;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
-
-    new Setting(containerEl)
       .setName('Custom Note Template')
-      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{custom}}')
-      .addTextArea((text) =>
+      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}}, {{custom}}, {{parent_note}} and {{related_notes}} (uncheck to add a custom frontmatter)')
+      .addTextArea((text) => {
         text
           .setPlaceholder(this.plugin.settings.noteTemplate)
           .setValue(this.plugin.settings.noteTemplate)
           .onChange(async (value) => {
             this.plugin.settings.noteTemplate = value;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+        // Add autoresize to the textarea
+        text.inputEl.classList.add('autoresize');
+        autoResizeTextArea(text.inputEl);
+        text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
+        containerEl.appendChild(text.inputEl);
+      })
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.useDefaultFrontmatter)
+          .onChange(async (value) => {
+            this.plugin.settings.useDefaultFrontmatter = value;
+            await this.plugin.saveSettings();
+          });
+      });
 
     new Setting(containerEl)
-      .setName('Exclude Folders')
-      .setDesc('Comma-separated list of folders to exclude from syncing')
+      .setName('Exclude Tags')
+      .setDesc('Comma-separated list of tags to exclude from syncing')
       .addText((text) =>
         text
-          .setPlaceholder('Archive, Drafts')
-          .setValue(this.plugin.settings.excludeFolders.join(', '))
+          .setPlaceholder('archive, trash')
+          .setValue(this.plugin.settings.excludeTags.join(', '))
           .onChange(async (value) => {
-            this.plugin.settings.excludeFolders = value.split(',').map((folder) => folder.trim());
+            this.plugin.settings.excludeTags = value.split(',').map((folder) => folder.trim());
             await this.plugin.saveSettings();
           })
       );
