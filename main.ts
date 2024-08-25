@@ -1,7 +1,7 @@
 import { App, DataAdapter, Editor, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
 import VoiceNotesApi from './voicenotes-api';
 import {
-    getFilenameFromUrl, isToday, formatDuration, formatDate, formatTags, convertHtmlEntitiesToMarkdown
+    getFilenameFromUrl, isToday, formatDuration, formatDate, formatTags, convertHtmlToMarkdown
 } from './utils';
 import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
@@ -346,7 +346,7 @@ export default class VoiceNotesPlugin extends Plugin {
 
             // Render the template using Jinja
             let note = jinja.render(this.settings.noteTemplate, context).replace(/\n{3,}/g, '\n\n');
-            note = convertHtmlEntitiesToMarkdown(note);
+            note = convertHtmlToMarkdown(note);
 
             // Add default metadata or ensure recording_id is present
             if (this.settings.useDefaultFrontmatter) {

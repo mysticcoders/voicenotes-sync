@@ -80,7 +80,7 @@ export function autoResizeTextArea(textarea: HTMLTextAreaElement): void {
   });
 }
 
-export function convertHtmlEntitiesToMarkdown(text: string): string {
+export function convertHtmlToMarkdown(text: string): string {
   const htmlEntities: { [key: string]: string } = {
     '&lt;': '<',
     '&gt;': '>',
@@ -88,8 +88,16 @@ export function convertHtmlEntitiesToMarkdown(text: string): string {
     '&quot;': '"',
     '&#39;': "'",
     '&nbsp;': ' ',
-    '&br;': '\n'
   };
 
-  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => htmlEntities[entity] || entity);
+  // Convert HTML entities
+  let markdown = text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => htmlEntities[entity] || entity);
+
+  // Convert <br/> tags to newlines
+  markdown = markdown.replace(/<br\s*\/?>/gi, '\n');
+
+  // Remove other HTML tags
+  markdown = markdown.replace(/<\/?[^>]+(>|$)/g, '');
+
+  return markdown.trim();
 }
