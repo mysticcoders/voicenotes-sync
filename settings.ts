@@ -205,7 +205,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       .setDesc('Format of the date used in the templates below (moment.js format)')
       .addText((text) =>
         text
-          .setPlaceholder('DD/MM/YYYY HH:mm')
+          .setPlaceholder('YYYY-MM-DD')
           .setValue(this.plugin.settings.dateFormat)
           .onChange(async (value) => {
             this.plugin.settings.dateFormat = value;
