@@ -138,7 +138,9 @@ export default class VoiceNotesPlugin extends Plugin {
         await this.loadSettings();
         this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
 
-        this.setupAutoSync();
+        if (this.settings.token) {
+            this.setupAutoSync();
+        }
 
         this.addCommand({
             id: 'manual-sync-voicenotes',
@@ -332,6 +334,7 @@ export default class VoiceNotesPlugin extends Plugin {
                 ? recording.tags.map((tag: { name: string }) => `#${tag.name.replace(/\s+/g, '-')}`).join(' ')
                 : null;
             const context = {
+                recording_id: recording.recording_id,
                 title: title,
                 date: formatDate(recording.created_at, this.settings.dateFormat),
                 transcript: transcript,

@@ -53,6 +53,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
           if (this.plugin.settings.token) {
             new Notice('Login to voicenotes.com was successful');
             await this.plugin.saveSettings();
+            this.plugin.setupAutoSync();
             await this.display();
           } else {
             new Notice('Login to voicenotes.com was unsuccessful');
@@ -78,6 +79,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
           if (response) {
             new Notice('Login to voicenotes.com was successful');
             await this.plugin.saveSettings();
+            this.plugin.setupAutoSync();
             await this.display();
           } else {
             new Notice('Login to voicenotes.com was unsuccessful');
@@ -227,7 +229,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Custom Note Template')
-      .setDesc('Custom template for synced notes. Available variables: {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}}, {{custom}}, {{parent_note}} and {{related_notes}} (uncheck to add a custom frontmatter)')
+      .setDesc('Custom template for synced notes. Available variables: {{recording_id}}, {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}}, {{custom}}, {{parent_note}} and {{related_notes}} (uncheck to add a custom frontmatter)')
       .addTextArea((text) => {
         text
           .setPlaceholder(this.plugin.settings.noteTemplate)
