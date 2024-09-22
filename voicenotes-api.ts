@@ -94,26 +94,37 @@ export default class VoiceNotesApi {
 
   async getRecordings(): Promise<VoiceNoteRecordings> {
     if (this.token) {
-      const data = await requestUrl({
-        url: `${VOICENOTES_API_URL}/recordings`,
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-        },
-      });
-      return data.json as VoiceNoteRecordings;
+      try {
+        const data = await requestUrl({
+          url: `${VOICENOTES_API_URL}/recordings`,
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+          },
+        });
+        return data.json as VoiceNoteRecordings;
+      } catch (error) {
+        if (error.status === 401) {
+          this.token = undefined;
+          throw error;            // rethrow so we can catch in caller
+        }
+      }
     }
     return null;
   }
 
   async getUserInfo(): Promise<User> {
     if (this.token) {
-      const data = await requestUrl({
-        url: `${VOICENOTES_API_URL}/auth/me`,
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-        },
-      });
-      return data.json;
+      try {
+        const data = await requestUrl({
+          url: `${VOICENOTES_API_URL}/auth/me`,
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+          },
+        });
+        return data.json;
+      } catch (error) {
+        console.error(error);
+      }
     }
     return null;
   }
