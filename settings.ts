@@ -229,7 +229,9 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Custom Note Template')
-      .setDesc('Custom template for synced notes. Available variables: {{recording_id}}, {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}}, {{custom}}, {{parent_note}} and {{related_notes}} (uncheck to add a custom frontmatter)')
+      .setDesc(
+        'Custom template for synced notes. Available variables: {{recording_id}}, {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}}, {{custom}}, {{parent_note}} and {{related_notes}} (uncheck to add a custom frontmatter)'
+      )
       .addTextArea((text) => {
         text
           .setPlaceholder(this.plugin.settings.noteTemplate)
@@ -245,12 +247,10 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         containerEl.appendChild(text.inputEl);
       })
       .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.useDefaultFrontmatter)
-          .onChange(async (value) => {
-            this.plugin.settings.useDefaultFrontmatter = value;
-            await this.plugin.saveSettings();
-          });
+        toggle.setValue(this.plugin.settings.useDefaultFrontmatter).onChange(async (value) => {
+          this.plugin.settings.useDefaultFrontmatter = value;
+          await this.plugin.saveSettings();
+        });
       });
 
     new Setting(containerEl)

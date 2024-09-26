@@ -105,7 +105,7 @@ export default class VoiceNotesApi {
       } catch (error) {
         if (error.status === 401) {
           this.token = undefined;
-          throw error;            // rethrow so we can catch in caller
+          throw error; // rethrow so we can catch in caller
         }
       }
     }
