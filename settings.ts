@@ -215,6 +215,19 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName('Filename Date Format')
+      .setDesc('Format of the date used to replace {{date}} if in Filename Template below (moment.js format)')
+      .addText((text) =>
+        text
+          .setPlaceholder('YYYY-MM-DD')
+          .setValue(this.plugin.settings.filenameDateFormat)
+          .onChange(async (value) => {
+            this.plugin.settings.filenameDateFormat = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName('Filename Template')
       .setDesc('Template for the filename of synced notes. Available variables: {{date}}, {{title}}')
       .addText((text) =>

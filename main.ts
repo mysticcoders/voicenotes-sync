@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
   deleteSynced: false,
   reallyDeleteSynced: false,
   todoTag: '',
-  prependDateFormat: 'YYYY-MM-DD',
+  filenameDateFormat: 'YYYY-MM-DD',
   useDefaultFrontmatter: true,
   noteTemplate: `# {{ title }}
 
@@ -113,7 +113,6 @@ Date: {{ date }}
 `,
   excludeTags: [],
   dateFormat: 'YYYY-MM-DD',
-  prependDate: false,
 };
 
 export default class VoiceNotesPlugin extends Plugin {
@@ -223,7 +222,7 @@ export default class VoiceNotesPlugin extends Plugin {
   }
 
   sanitizedTitle(title: string, created_at: string): string {
-    const date = formatDate(created_at, this.settings.prependDateFormat);
+    const date = formatDate(created_at, this.settings.filenameDateFormat);
     const generatedTitle = this.settings.filenameTemplate.replace('{{date}}', date).replace('{{title}}', title);
     return sanitize(generatedTitle);
   }

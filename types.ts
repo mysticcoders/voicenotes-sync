@@ -14,13 +14,12 @@ export interface VoiceNotesPluginSettings {
   deleteSynced: boolean;
   reallyDeleteSynced: boolean;
   todoTag: string;
-  prependDateFormat: string;
+  filenameDateFormat: string;
   useDefaultFrontmatter: boolean;
   noteTemplate: string;
   filenameTemplate: string;
   excludeTags: string[];
   dateFormat: string;
-  prependDate: boolean;
 }
 
 export interface UserSettings {
