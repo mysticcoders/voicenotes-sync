@@ -396,11 +396,11 @@ export default class VoiceNotesPlugin extends Plugin {
         // Add default metadata or ensure recording_id is present
         if (this.settings.useDefaultFrontmatter) {
           const metadata = `---
-    recording_id: ${recording.recording_id}
-    duration: ${formatDuration(recording.duration)}
-    created_at: ${formatDate(recording.created_at, this.settings.dateFormat)}
-    updated_at: ${formatDate(recording.updated_at, this.settings.dateFormat)}
-    ${formatTags(recording)}
+recording_id: ${recording.recording_id}
+duration: ${formatDuration(recording.duration)}
+created_at: ${formatDate(recording.created_at, this.settings.dateFormat)}
+updated_at: ${formatDate(recording.updated_at, this.settings.dateFormat)}
+${formatTags(recording)}
 ---\n`;
 
           note = metadata + note;
