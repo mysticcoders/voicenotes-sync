@@ -492,10 +492,13 @@ ${formatTags(recording)}
       new Notice(`Sync complete. ${unsyncedCount.count} recordings were not synced due to excluded tags.`);
     } catch (error) {
       console.error(error);
-      this.settings.token = undefined;
-      await this.saveSettings();
-      new Notice(`Login token was invalid, please try logging in again.`);
-      return;
+      if (error.hasOwnProperty('status') !== 'undefined') {
+        this.settings.token = undefined;
+        await this.saveSettings();
+        new Notice(`Login token was invalid, please try logging in again.`);
+      } else {
+        new Notice(`Error occurred syncing some notes to this vault.`)
+      }
     }
   }
 }
