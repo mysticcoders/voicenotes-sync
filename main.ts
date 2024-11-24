@@ -441,6 +441,17 @@ ${formatTags(recording)}
     } catch (error) {
       console.error(error);
       if (error.hasOwnProperty('status') !== 'undefined') {
+        console.error(error.status);
+        if (error.hasOwnProperty('text') !== 'undefined') {
+          console.error(error.text);
+        }
+        if (error.hasOwnProperty('json') !== 'undefined') {
+          console.error(error.json);
+        }
+        if (error.hasOwnProperty('headers') !== 'undefined') {
+          console.error(error.headers);
+        }
+
         this.settings.token = undefined;
         await this.saveSettings();
         new Notice(`Login token was invalid, please try logging in again.`);
