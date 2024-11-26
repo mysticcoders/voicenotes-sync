@@ -241,9 +241,29 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Custom Note Template')
+      .setName('Frontmatter Template')
       .setDesc(
-        'Custom template for synced notes. Available variables: {{recording_id}}, {{title}}, {{date}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}}, {{custom}}, {{parent_note}} and {{related_notes}} (uncheck to add a custom frontmatter)'
+        'Frontmatter / properties template for notes. recording_id and the three dashes before and after properties automatically added'
+      )
+      .addTextArea((text) => {
+        text
+          .setPlaceholder(this.plugin.settings.frontmatterTemplate)
+          .setValue(this.plugin.settings.frontmatterTemplate)
+          .onChange(async (value) => {
+            this.plugin.settings.frontmatterTemplate = value;
+            await this.plugin.saveSettings();
+          });
+        // Add autoresize to the textarea
+        text.inputEl.classList.add('autoresize');
+        autoResizeTextArea(text.inputEl);
+        text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
+        containerEl.appendChild(text.inputEl);
+      })
+
+    new Setting(containerEl)
+      .setName('Note Template')
+      .setDesc(
+        'Template for synced notes. Available variables: {{recording_id}}, {{title}}, {{date}}, {{duration}}, {{created_at}}, {{updated_at}}, {{tags}}, {{transcript}}, {{audio_link}}, {{summary}}, {{tidy}}, {{points}}, {{todo}}, {{email}}, {{tweet}}, {{blog}}, {{custom}}, {{parent_note}} and {{related_notes}}'
       )
       .addTextArea((text) => {
         text
@@ -259,12 +279,6 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
         containerEl.appendChild(text.inputEl);
       })
-      .addToggle((toggle) => {
-        toggle.setValue(this.plugin.settings.useDefaultFrontmatter).onChange(async (value) => {
-          this.plugin.settings.useDefaultFrontmatter = value;
-          await this.plugin.saveSettings();
-        });
-      });
 
     new Setting(containerEl)
       .setName('Exclude Tags')

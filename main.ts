@@ -17,6 +17,10 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
   todoTag: '',
   filenameDateFormat: 'YYYY-MM-DD',
   useDefaultFrontmatter: true,
+  frontmatterTemplate: `duration: {{duration}}
+created_at: {{created_at}}
+updated_at: {{updated_at}}
+{{formattedTags}}`,
   noteTemplate: `# {{ title }}
 
 Date: {{ date }}
@@ -356,6 +360,9 @@ export default class VoiceNotesPlugin extends Plugin {
           recording_id: recording.recording_id,
           title: title,
           date: formatDate(recording.created_at, this.settings.dateFormat),
+          duration: formatDuration(recording.duration),
+          created_at: formatDate(recording.created_at, this.settings.dateFormat),
+          updated_at: formatDate(recording.updated_at, this.settings.dateFormat),
           transcript: transcript,
           audio_link: audioLink,
           summary: summary ? summary.markdown_content : null,
@@ -393,35 +400,13 @@ export default class VoiceNotesPlugin extends Plugin {
         let note = jinja.render(this.settings.noteTemplate, context).replace(/\n{3,}/g, '\n\n');
         note = convertHtmlToMarkdown(note);
 
-        // Add default metadata or ensure recording_id is present
-        if (this.settings.useDefaultFrontmatter) {
-          const metadata = `---
-recording_id: ${recording.recording_id}
-duration: ${formatDuration(recording.duration)}
-created_at: ${formatDate(recording.created_at, this.settings.dateFormat)}
-updated_at: ${formatDate(recording.updated_at, this.settings.dateFormat)}
-${formatTags(recording)}
----\n`;
+        // Recording ID is required so we force it
+        let recordingIdTemplate = `recording_id: {{recording_id}}\n`;
+        let renderedFrontmatter = jinja.render(recordingIdTemplate + this.settings.frontmatterTemplate, context).replace(/\n{3,}/g, '\n\n');
 
-          note = metadata + note;
-        } else {
-          const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-          const match = note.match(frontmatterRegex);
+        const metadata = `---\n${renderedFrontmatter}\n---\n`
 
-          if (match) {
-            // Frontmatter exists, update or add recording_id
-            const existingFrontmatter = match[1];
-            const updatedFrontmatter =
-              existingFrontmatter.replace(/recording_id:.*\n?/, '') + `recording_id: ${recording.recording_id}\n`;
-            note = note.replace(frontmatterRegex, `---\n${updatedFrontmatter}---`);
-          } else {
-            // No frontmatter, create one with recording_id
-            const metadata = `---
-    recording_id: ${recording.recording_id}
----\n`;
-            note = metadata + note;
-          }
-        }
+        note = metadata + note;
 
         // Create or update note
         if (noteExists) {
