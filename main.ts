@@ -54,8 +54,12 @@ Date: {{ date }}
 {{ transcript }}
 {% endif %}
 
-{% if audio_link %}
-[Audio]({{ audio_link }})
+{% if embedded_audio_link %}
+{{ embedded_audio_link }}
+{% endif %}
+
+{% if audio_filename %}
+[[{{ audio_filename }}|Audio]]
 {% endif %}
 
 {% if todo %}
@@ -307,7 +311,8 @@ export default class VoiceNotesPlugin extends Plugin {
         // Destructure creations object to get individual variables if needed
         const { summary, points, tidy, todo, tweet, blog, email, custom } = creations;
 
-        let audioLink = '';
+        let embeddedAudioLink = '';
+        let audioFilename = '';
         if (this.settings.downloadAudio) {
           const audioPath = normalizePath(`${voiceNotesDir}/audio`);
           if (!(await this.app.vault.adapter.exists(audioPath))) {
@@ -318,7 +323,8 @@ export default class VoiceNotesPlugin extends Plugin {
             const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id);
             await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
           }
-          audioLink = `![[${recording.recording_id}.mp3]]`;
+          embeddedAudioLink = `![[${recording.recording_id}.mp3]]`;
+          audioFilename = `${recording.recording_id}.mp3`;
         }
 
         // Handle attachments
@@ -364,7 +370,8 @@ export default class VoiceNotesPlugin extends Plugin {
           created_at: formatDate(recording.created_at, this.settings.dateFormat),
           updated_at: formatDate(recording.updated_at, this.settings.dateFormat),
           transcript: transcript,
-          audio_link: audioLink,
+          embedded_audio_link: embeddedAudioLink,
+          audio_filename: audioFilename,
           summary: summary ? summary.markdown_content : null,
           tidy: tidy ? tidy.markdown_content : null,
           points: formattedPoints,
