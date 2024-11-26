@@ -16,11 +16,10 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
   reallyDeleteSynced: false,
   todoTag: '',
   filenameDateFormat: 'YYYY-MM-DD',
-  useDefaultFrontmatter: true,
   frontmatterTemplate: `duration: {{duration}}
 created_at: {{created_at}}
 updated_at: {{updated_at}}
-{{formattedTags}}`,
+{{tags}}`,
   noteTemplate: `# {{ title }}
 
 Date: {{ date }}

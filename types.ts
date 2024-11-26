@@ -15,7 +15,6 @@ export interface VoiceNotesPluginSettings {
   reallyDeleteSynced: boolean;
   todoTag: string;
   filenameDateFormat: string;
-  useDefaultFrontmatter: boolean;
   frontmatterTemplate: string;
   noteTemplate: string;
   filenameTemplate: string;
