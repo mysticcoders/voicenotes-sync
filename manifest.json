@@ -1,7 +1,7 @@
 {
 	"id": "voicenotes-sync",
 	"name": "Voicenotes Sync",
-	"version": "0.0.28",
+	"version": "0.0.30-beta",
 	"minAppVersion": "1.5.12",
 	"description": "Synchronize your notes from Voicenotes.com",
 	"author": "Andrew Lombardi",
