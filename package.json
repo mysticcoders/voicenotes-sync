@@ -1,6 +1,6 @@
 {
   "name": "voicenotes-sync",
-  "version": "0.0.30-beta",
+  "version": "0.0.30-beta2",
   "description": "A plugin for syncing Voicenotes.com data into notes",
   "main": "main.js",
   "scripts": {
