@@ -120,6 +120,8 @@ Date: {{ date }}
 `,
   excludeTags: [],
   dateFormat: 'YYYY-MM-DD',
+  useCustomChangedAtProperty: false,
+  customChangedAtProperty: 'created_at',
 };
 
 export default class VoiceNotesPlugin extends Plugin {
@@ -225,7 +227,11 @@ export default class VoiceNotesPlugin extends Plugin {
   }
 
   async isRecordingFromToday(file: TFile): Promise<boolean> {
-    return isToday(await this.app.metadataCache.getFileCache(file)?.frontmatter?.['created_at']);
+    return isToday(
+      await this.app.metadataCache.getFileCache(file)?.frontmatter?.[
+        this.settings.useCustomChangedAtProperty ? this.settings.customChangedAtProperty : 'created_at'
+      ]
+    );
   }
 
   sanitizedTitle(title: string, created_at: string): string {
@@ -407,10 +413,12 @@ export default class VoiceNotesPlugin extends Plugin {
         note = convertHtmlToMarkdown(note);
 
         // Recording ID is required so we force it
-        let recordingIdTemplate = `recording_id: {{recording_id}}\n`;
-        let renderedFrontmatter = jinja.render(recordingIdTemplate + this.settings.frontmatterTemplate, context).replace(/\n{3,}/g, '\n\n');
+        const recordingIdTemplate = `recording_id: {{recording_id}}\n`;
+        const renderedFrontmatter = jinja
+          .render(recordingIdTemplate + this.settings.frontmatterTemplate, context)
+          .replace(/\n{3,}/g, '\n\n');
 
-        const metadata = `---\n${renderedFrontmatter}\n---\n`
+        const metadata = `---\n${renderedFrontmatter}\n---\n`;
 
         note = metadata + note;
 
@@ -447,7 +455,7 @@ export default class VoiceNotesPlugin extends Plugin {
         await this.saveSettings();
         new Notice(`Login token was invalid, please try logging in again.`);
       } else {
-        new Notice(`Error occurred syncing some notes to this vault.`)
+        new Notice(`Error occurred syncing some notes to this vault.`);
       }
     }
   }
@@ -502,7 +510,7 @@ export default class VoiceNotesPlugin extends Plugin {
         await this.saveSettings();
         new Notice(`Login token was invalid, please try logging in again.`);
       } else {
-        new Notice(`Error occurred syncing some notes to this vault.`)
+        new Notice(`Error occurred syncing some notes to this vault.`);
       }
     }
   }
