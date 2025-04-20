@@ -258,7 +258,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         autoResizeTextArea(text.inputEl);
         text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
         containerEl.appendChild(text.inputEl);
-      })
+      });
 
     new Setting(containerEl)
       .setName('Note Template')
@@ -278,7 +278,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         autoResizeTextArea(text.inputEl);
         text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
         containerEl.appendChild(text.inputEl);
-      })
+      });
 
     new Setting(containerEl)
       .setName('Exclude Tags')

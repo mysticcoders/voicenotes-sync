@@ -407,10 +407,12 @@ export default class VoiceNotesPlugin extends Plugin {
         note = convertHtmlToMarkdown(note);
 
         // Recording ID is required so we force it
-        let recordingIdTemplate = `recording_id: {{recording_id}}\n`;
-        let renderedFrontmatter = jinja.render(recordingIdTemplate + this.settings.frontmatterTemplate, context).replace(/\n{3,}/g, '\n\n');
+        const recordingIdTemplate = `recording_id: {{recording_id}}\n`;
+        const renderedFrontmatter = jinja
+          .render(recordingIdTemplate + this.settings.frontmatterTemplate, context)
+          .replace(/\n{3,}/g, '\n\n');
 
-        const metadata = `---\n${renderedFrontmatter}\n---\n`
+        const metadata = `---\n${renderedFrontmatter}\n---\n`;
 
         note = metadata + note;
 
@@ -431,15 +433,15 @@ export default class VoiceNotesPlugin extends Plugin {
       }
     } catch (error) {
       console.error(error);
-      if (error.hasOwnProperty('status') !== 'undefined') {
+      if (Object.prototype.hasOwnProperty.call(error, 'status') !== 'undefined') {
         console.error(error.status);
-        if (error.hasOwnProperty('text') !== 'undefined') {
+        if (Object.prototype.hasOwnProperty.call(error, 'text') !== 'undefined') {
           console.error(error.text);
         }
-        if (error.hasOwnProperty('json') !== 'undefined') {
+        if (Object.prototype.hasOwnProperty.call(error, 'json') !== 'undefined') {
           console.error(error.json);
         }
-        if (error.hasOwnProperty('headers') !== 'undefined') {
+        if (Object.prototype.hasOwnProperty.call(error, 'headers') !== 'undefined') {
           console.error(error.headers);
         }
 
@@ -447,7 +449,7 @@ export default class VoiceNotesPlugin extends Plugin {
         await this.saveSettings();
         new Notice(`Login token was invalid, please try logging in again.`);
       } else {
-        new Notice(`Error occurred syncing some notes to this vault.`)
+        new Notice(`Error occurred syncing some notes to this vault.`);
       }
     }
   }
@@ -497,12 +499,12 @@ export default class VoiceNotesPlugin extends Plugin {
       new Notice(`Sync complete. ${unsyncedCount.count} recordings were not synced due to excluded tags.`);
     } catch (error) {
       console.error(error);
-      if (error.hasOwnProperty('status') !== 'undefined') {
+      if (Object.prototype.hasOwnProperty.call(error, 'status') !== 'undefined') {
         this.settings.token = undefined;
         await this.saveSettings();
         new Notice(`Login token was invalid, please try logging in again.`);
       } else {
-        new Notice(`Error occurred syncing some notes to this vault.`)
+        new Notice(`Error occurred syncing some notes to this vault.`);
       }
     }
   }
