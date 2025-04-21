@@ -19,5 +19,6 @@
   },
   "include": [
     "**/*.ts"
-  ]
+  ],
+  "typeRoots": ["./node_modules/@types", "./src/tests/types"]
 }
