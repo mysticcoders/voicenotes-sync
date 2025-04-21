@@ -9,8 +9,11 @@ package-lock.json
 # build
 main.js
 *.js.map
+*-*.js
+*.bak
 
 # obsidian
 data.json
 
+# test coverage
 coverage
