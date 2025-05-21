@@ -5,7 +5,6 @@
 export interface VoiceNotesPluginSettings {
   token?: string;
   username?: string;
-  password?: string;
   automaticSync: boolean;
   syncTimeout?: number;
   downloadAudio?: boolean;

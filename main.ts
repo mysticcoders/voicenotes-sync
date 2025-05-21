@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: VoiceNotesPluginSettings = {
   deleteSynced: false,
   reallyDeleteSynced: false,
   todoTag: '',
+  username: '',
   filenameDateFormat: 'YYYY-MM-DD',
   frontmatterTemplate: `duration: {{duration}}
 created_at: {{created_at}}
@@ -139,6 +140,10 @@ export default class VoiceNotesPlugin extends Plugin {
 
   async onload() {
     await this.loadSettings();
+    this.vnApi = new VoiceNotesApi({
+      token: this.settings.token,
+      username: this.settings.username
+    });
     this.addSettingTab(new VoiceNotesSettingTab(this.app, this));
 
     if (this.settings.token) {
@@ -320,10 +325,15 @@ export default class VoiceNotesPlugin extends Plugin {
           const outputLocationPath = normalizePath(`${audioPath}/${recording.recording_id}.mp3`);
           if (!(await this.app.vault.adapter.exists(outputLocationPath))) {
             const signedUrl = await this.vnApi.getSignedUrl(recording.recording_id);
-            await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
+            if (signedUrl && signedUrl.url) {
+              await this.vnApi.downloadFile(this.fs, signedUrl.url, outputLocationPath);
+              embeddedAudioLink = `![[${recording.recording_id}.mp3]]`;
+              audioFilename = `${recording.recording_id}.mp3`;
+            } else {
+              new Notice(`Could not get download URL for audio: ${recording.title}. Skipping audio download.`)
+              console.error(`Failed to get signed URL for recording ID: ${recording.recording_id}`);
+            }
           }
-          embeddedAudioLink = `![[${recording.recording_id}.mp3]]`;
-          audioFilename = `${recording.recording_id}.mp3`;
         }
 
         // Handle attachments
@@ -353,8 +363,8 @@ export default class VoiceNotesPlugin extends Plugin {
         const formattedPoints = points ? points.content.data.map((data: string) => `- ${data}`).join('\n') : null;
         const formattedTodos = todo
           ? todo.content.data
-              .map((data: string) => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`)
-              .join('\n')
+            .map((data: string) => `- [ ] ${data}${this.settings.todoTag ? ' #' + this.settings.todoTag : ''}`)
+            .join('\n')
           : null;
         // Format tags, replacing spaces with hyphens for multi-word tags
         const formattedTags =
@@ -383,20 +393,20 @@ export default class VoiceNotesPlugin extends Plugin {
           related_notes:
             recording.related_notes && recording.related_notes.length > 0
               ? recording.related_notes
-                  .map(
-                    (relatedNote: { title: string; created_at: string }) =>
-                      `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`
-                  )
-                  .join('\n')
+                .map(
+                  (relatedNote: { title: string; created_at: string }) =>
+                    `- [[${this.sanitizedTitle(relatedNote.title, relatedNote.created_at)}]]`
+                )
+                .join('\n')
               : null,
           subnotes:
             recording.subnotes && recording.subnotes.length > 0
               ? recording.subnotes
-                  .map(
-                    (subnote: { title: string; created_at: string }) =>
-                      `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]`
-                  )
-                  .join('\n')
+                .map(
+                  (subnote: { title: string; created_at: string }) =>
+                    `- [[${this.sanitizedTitle(subnote.title, subnote.created_at)}]]`
+                )
+                .join('\n')
               : null,
           attachments: attachments,
           parent_note: isSubnote ? `[[${parentTitle}]]` : null,
@@ -426,7 +436,10 @@ export default class VoiceNotesPlugin extends Plugin {
         }
 
         if (this.settings.deleteSynced && this.settings.reallyDeleteSynced) {
-          await this.vnApi.deleteRecording(recording.recording_id);
+          const deleted = await this.vnApi.deleteRecording(recording.recording_id);
+          if (!deleted) {
+            new Notice(`Failed to delete recording from server: ${recording.title}`);
+          }
         }
       }
     } catch (error) {
@@ -458,9 +471,6 @@ export default class VoiceNotesPlugin extends Plugin {
 
       this.syncedRecordingIds = await this.getSyncedRecordingIds();
 
-      this.vnApi = new VoiceNotesApi({});
-      this.vnApi.token = this.settings.token;
-
       const voiceNotesDir = normalizePath(this.settings.syncDirectory);
       if (!(await this.app.vault.adapter.exists(voiceNotesDir))) {
         new Notice('Creating sync directory for Voice Notes Sync plugin');
@@ -477,32 +487,62 @@ export default class VoiceNotesPlugin extends Plugin {
 
       if (fullSync && recordings.links.next) {
         let nextPage = recordings.links.next;
+        let pageNum = 1;
+        const initialTotal = recordings.data.length;
+        console.log(`Full Sync: Starting. Initial page loaded with ${initialTotal} recordings.`);
 
         do {
-          console.debug(`Performing a full sync ${nextPage}`);
+          pageNum++;
+          console.log(`Full Sync: Fetching page ${pageNum} from URL: ${nextPage}`);
 
           const moreRecordings = await this.vnApi.getRecordingsFromLink(nextPage);
+          if (!moreRecordings || !moreRecordings.data) {
+            new Notice('Failed to fetch further recordings during full sync. Please check login status.');
+            // Token might be invalid, clear it to force re-login on next attempt or settings visit
+            this.settings.token = undefined;
+            await this.saveSettings();
+            // Consider stopping the sync or further pagination here
+            return;
+          }
           recordings.data.push(...moreRecordings.data);
           nextPage = moreRecordings.links.next;
+          console.log(`Full Sync: Page ${pageNum} fetched. Total recordings so far: ${recordings.data.length}. Next page: ${nextPage ? 'Yes' : 'No'}`);
         } while (nextPage);
+        console.log(`Full Sync: All pages fetched. Total recordings: ${recordings.data.length}`);
       }
 
-      if (recordings) {
+      if (recordings && recordings.data) {
         new Notice(`Syncing latest Voicenotes`);
+        let processedCount = 0;
+        const totalToProcess = recordings.data.length;
+        console.log(`Processing ${totalToProcess} recordings...`);
+
         for (const recording of recordings.data) {
           await this.processNote(recording, voiceNotesDir, false, '', unsyncedCount);
+          processedCount++;
+          if (processedCount % 10 === 0 || processedCount === totalToProcess) { // Log every 10 or at the end
+            console.log(`Processed ${processedCount}/${totalToProcess} recordings.`);
+          }
         }
       }
 
       new Notice(`Sync complete. ${unsyncedCount.count} recordings were not synced due to excluded tags.`);
-    } catch (error) {
-      console.error(error);
-      if (error.hasOwnProperty('status') !== 'undefined') {
-        this.settings.token = undefined;
+    } catch (error: any) {
+      console.error('Error during sync:', error);
+      if (error && (error.status === 401 || error.status === 403)) {
+        // Authentication or Authorization error
+        this.settings.token = undefined; // Clear token as it's invalid or insufficient
         await this.saveSettings();
-        new Notice(`Login token was invalid, please try logging in again.`);
+        new Notice('Authentication failed. Please log in again via VoiceNotes Sync settings.');
+      } else if (error && error.status === 429) {
+        // Rate limit error specifically
+        new Notice('Sync interrupted due to server rate limits. Please try again later.');
+      } else if (error && error.message && error.message.includes('credentials not available')) {
+        // Specific error from our API client if login is needed but no creds
+        new Notice('Login credentials not available for VoiceNotes Sync. Please log in via settings.');
       } else {
-        new Notice(`Error occurred syncing some notes to this vault.`)
+        // Other types of errors (network, unexpected server issues, etc.)
+        new Notice('Error occurred syncing some notes. Check console for details.');
       }
     }
   }
