@@ -19,6 +19,7 @@ export interface VoiceNotesPluginSettings {
   filenameTemplate: string;
   excludeTags: string[];
   dateFormat: string;
+  showImageDescriptions: boolean;
 }
 
 export interface UserSettings {

@@ -121,6 +121,7 @@ Date: {{ date }}
 `,
   excludeTags: [],
   dateFormat: 'YYYY-MM-DD',
+  showImageDescriptions: true,
 };
 
 export default class VoiceNotesPlugin extends Plugin {
@@ -351,12 +352,19 @@ export default class VoiceNotesPlugin extends Plugin {
                 } else if (data.type === 2) {
                   const filename = getFilenameFromUrl(data.url);
                   const attachmentPath = normalizePath(`${attachmentsPath}/${filename}`);
-                  await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
-                  return `- ![[${filename}]]`;
+                  if (!(await this.app.vault.adapter.exists(attachmentPath))) {
+                    await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
+                  }
+                  let attachmentMarkdown = `- ![[${filename}]]`;
+                  if (this.settings.showImageDescriptions && data.description && data.description.trim() !== '') {
+                    attachmentMarkdown += `\n  *${data.description.trim()}*`;
+                  }
+                  return attachmentMarkdown;
                 }
+                return '';
               })
             )
-          ).join('\n');
+          ).filter(content => content && content.trim() !== '').join('\n');
         }
 
         // Prepare context for Jinja template

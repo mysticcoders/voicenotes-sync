@@ -259,6 +259,16 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName('Show Image Descriptions')
+      .setDesc('If enabled, show the description below an image attachment (in italics).')
+      .addToggle((toggle: ToggleComponent) =>
+        toggle.setValue(this.plugin.settings.showImageDescriptions).onChange(async (value: boolean) => {
+          this.plugin.settings.showImageDescriptions = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
       .setName('Date Format')
       .setDesc('Format of the date used in the templates below (moment.js format)')
       .addText((text: TextComponent) =>
