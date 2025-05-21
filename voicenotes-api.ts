@@ -115,7 +115,13 @@ export default class VoiceNotesApi {
           throw error;
         }
       } else if (error.status === 429) {
-        const retryAfterSeconds = parseInt(error.headers?.get('retry-after')) || 5;
+        let retryAfterSeconds = 5; // Default value
+        if (error.headers) {
+          const retryAfterHeader = error.headers['retry-after'] || error.headers['Retry-After'];
+          if (retryAfterHeader) {
+            retryAfterSeconds = parseInt(retryAfterHeader) || 5;
+          }
+        }
         console.warn(`Rate limited by Voicenotes API. Retrying request to ${paramsWithAuth.url} in ${retryAfterSeconds} seconds. Headers: ${JSON.stringify(error.headers)}`);
         await new Promise(resolve => setTimeout(resolve, retryAfterSeconds * 1000));
         console.log(`Retrying request to ${paramsWithAuth.url} after rate limit delay.`);
