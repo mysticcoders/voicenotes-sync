@@ -5,7 +5,6 @@
 export interface VoiceNotesPluginSettings {
   token?: string;
   username?: string;
-  password?: string;
   automaticSync: boolean;
   syncTimeout?: number;
   downloadAudio?: boolean;
@@ -20,6 +19,7 @@ export interface VoiceNotesPluginSettings {
   filenameTemplate: string;
   excludeTags: string[];
   dateFormat: string;
+  showImageDescriptions: boolean;
 }
 
 export interface UserSettings {
