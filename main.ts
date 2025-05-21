@@ -43,6 +43,12 @@ Date: {{ date }}
 {{ attachments }}
 {% endif %}
 
+{% if entries %}
+## Manual Entries
+
+{{ entries }}
+{% endif %}
+
 {% if tidy %}
 ## Tidy Transcript
 
@@ -338,34 +344,43 @@ export default class VoiceNotesPlugin extends Plugin {
         }
 
         // Handle attachments
-        let attachments = '';
+        let attachmentsMarkdown = '';
+        const manualEntries: string[] = []; // Array to store type 3 entry descriptions
+
         if (recording.attachments && recording.attachments.length > 0) {
           const attachmentsPath = normalizePath(`${voiceNotesDir}/attachments`);
           if (!(await this.app.vault.adapter.exists(attachmentsPath))) {
             await this.app.vault.createFolder(attachmentsPath);
           }
-          attachments = (
+          attachmentsMarkdown = ( // Renamed from 'attachments' to avoid conflict with context key
             await Promise.all(
               recording.attachments.map(async (data: any) => {
-                if (data.type === 1) {
+                if (data.type === 1) { // Text description attachment
                   return `- ${data.description}`;
-                } else if (data.type === 2) {
+                } else if (data.type === 2) { // Image attachment
                   const filename = getFilenameFromUrl(data.url);
-                  const attachmentPath = normalizePath(`${attachmentsPath}/${filename}`);
-                  if (!(await this.app.vault.adapter.exists(attachmentPath))) {
-                    await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
+                  const attachmentPathLocal = normalizePath(`${attachmentsPath}/${filename}`); // Renamed to avoid conflict
+                  if (!(await this.app.vault.adapter.exists(attachmentPathLocal))) {
+                    await this.vnApi.downloadFile(this.fs, data.url, attachmentPathLocal);
                   }
-                  let attachmentMarkdown = `- ![[${filename}]]`;
+                  let imageMarkdown = `- ![[${filename}]]`;
                   if (this.settings.showImageDescriptions && data.description && data.description.trim() !== '') {
-                    attachmentMarkdown += `\n  *${data.description.trim()}*`;
+                    imageMarkdown += `\n  *${data.description.trim()}*`;
                   }
-                  return attachmentMarkdown;
+                  return imageMarkdown;
+                } else if (data.type === 3) { // Manual entry/note
+                  if (data.description && data.description.trim() !== '') {
+                    manualEntries.push(data.description.trim());
+                  }
+                  return null; // These won't be part of the {{attachments}} variable directly
                 }
-                return '';
+                return null; // Return null for unhandled types or if no direct markdown output
               })
             )
-          ).filter(content => content && content.trim() !== '').join('\n');
+          ).filter(content => content !== null).join('\n'); // Filter out nulls before joining
         }
+
+        const formattedEntries = manualEntries.length > 0 ? manualEntries.join('\n') : null;
 
         // Prepare context for Jinja template
         const formattedPoints = points ? points.content.data.map((data: string) => `- ${data}`).join('\n') : null;
@@ -416,8 +431,9 @@ export default class VoiceNotesPlugin extends Plugin {
                 )
                 .join('\n')
               : null,
-          attachments: attachments,
+          attachments: attachmentsMarkdown ? attachmentsMarkdown : null, // Use the processed markdown string for attachments
           parent_note: isSubnote ? `[[${parentTitle}]]` : null,
+          entries: formattedEntries, // Add the new entries variable
         };
 
         // Render the template using Jinja
