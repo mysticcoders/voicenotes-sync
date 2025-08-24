@@ -1,3 +1,5 @@
+.DS_Store
+
 # Intellij
 *.iml
 .idea
@@ -13,3 +15,6 @@ dist/
 
 # obsidian
 data.json
+
+# tests
+coverage

@@ -467,8 +467,7 @@ export default class VoiceNotesPlugin extends Plugin {
 
       this.syncedRecordingIds = await this.getSyncedRecordingIds();
 
-      this.vnApi = new VoiceNotesApi({});
-      this.vnApi.token = this.settings.token;
+      this.vnApi = new VoiceNotesApi({ token: this.settings.token });
 
       const voiceNotesDir = normalizePath(this.settings.syncDirectory);
       if (!(await this.app.vault.adapter.exists(voiceNotesDir))) {
