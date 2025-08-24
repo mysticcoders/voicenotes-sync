@@ -6,9 +6,10 @@
 node_modules
 package-lock.json
 
-# build
+# build output
 main.js
 *.js.map
+dist/
 
 # obsidian
 data.json

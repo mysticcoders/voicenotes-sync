@@ -1,3 +1,4 @@
+// @ts-ignore - moment typing issue with Obsidian
 import { moment } from 'obsidian';
 import * as crypto from 'crypto';
 import { promises as fs } from 'fs';
@@ -25,6 +26,7 @@ export function isAlphaNumeric(value: string): boolean {
 }
 
 export function isToday(date: string): boolean {
+  // @ts-ignore - moment is callable despite TypeScript thinking otherwise
   return moment(date).isSame(moment(), 'day');
 }
 
@@ -59,6 +61,7 @@ export function formatDuration(durationMs: number): string {
 
 export function formatDate(date: string, dateFormat: string): string {
   try {
+    // @ts-ignore - moment is callable despite TypeScript thinking otherwise
     return moment(date).format(dateFormat);
   } catch (error) {
     console.error('Error formatting date:', error);

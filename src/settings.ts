@@ -1,7 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import VoiceNotesPlugin from './main';
 import { autoResizeTextArea } from './utils';
-import VoiceNotesApi from './voicenotes-api';
+import VoiceNotesApi from './api/voicenotes';
 
 export class VoiceNotesSettingTab extends PluginSettingTab {
   plugin: VoiceNotesPlugin;

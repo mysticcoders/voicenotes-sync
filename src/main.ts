@@ -1,6 +1,6 @@
 import { App, DataAdapter, Editor, normalizePath, Notice, Plugin, PluginManifest, TFile } from 'obsidian';
-import VoiceNotesApi from './voicenotes-api';
-import { getFilenameFromUrl, isToday, formatDuration, formatDate, formatTags, convertHtmlToMarkdown } from './utils';
+import VoiceNotesApi from './api/voicenotes';
+import { getFilenameFromUrl, isToday, formatDuration, formatDate, convertHtmlToMarkdown } from './utils';
 import { VoiceNotesPluginSettings } from './types';
 import { sanitize } from 'sanitize-filename-ts';
 import { VoiceNotesSettingTab } from './settings';
@@ -350,6 +350,7 @@ export default class VoiceNotesPlugin extends Plugin {
                   await this.vnApi.downloadFile(this.fs, data.url, attachmentPath);
                   return `- ![[${filename}]]`;
                 }
+                return ''; // Return empty string for unknown attachment types
               })
             )
           ).join('\n');
@@ -439,15 +440,15 @@ export default class VoiceNotesPlugin extends Plugin {
       }
     } catch (error) {
       console.error(error);
-      if (error.hasOwnProperty('status') !== 'undefined') {
+      if (Object.prototype.hasOwnProperty.call(error, 'status') !== 'undefined') {
         console.error(error.status);
-        if (error.hasOwnProperty('text') !== 'undefined') {
+        if (Object.prototype.hasOwnProperty.call(error, 'text') !== 'undefined') {
           console.error(error.text);
         }
-        if (error.hasOwnProperty('json') !== 'undefined') {
+        if (Object.prototype.hasOwnProperty.call(error, 'json') !== 'undefined') {
           console.error(error.json);
         }
-        if (error.hasOwnProperty('headers') !== 'undefined') {
+        if (Object.prototype.hasOwnProperty.call(error, 'headers') !== 'undefined') {
           console.error(error.headers);
         }
 
@@ -505,7 +506,7 @@ export default class VoiceNotesPlugin extends Plugin {
       new Notice(`Sync complete. ${unsyncedCount.count} recordings were not synced due to excluded tags.`);
     } catch (error) {
       console.error(error);
-      if (error.hasOwnProperty('status') !== 'undefined') {
+      if (Object.prototype.hasOwnProperty.call(error, 'status') !== 'undefined') {
         this.settings.token = undefined;
         await this.saveSettings();
         new Notice(`Login token was invalid, please try logging in again.`);

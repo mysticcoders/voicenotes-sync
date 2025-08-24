@@ -1,5 +1,5 @@
 import { DataAdapter, requestUrl } from 'obsidian';
-import { User, VoiceNoteRecordings, VoiceNoteSignedUrl } from './types';
+import { User, VoiceNoteRecordings, VoiceNoteSignedUrl } from '../types';
 
 const VOICENOTES_API_URL = 'https://api.voicenotes.com/api';
 
