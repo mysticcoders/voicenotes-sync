@@ -369,7 +369,7 @@ export default class VoiceNotesPlugin extends Plugin {
             : null;
         const context = {
           recording_id: recording.recording_id,
-          title: title,
+          title: recording.title,
           date: formatDate(recording.created_at, this.settings.dateFormat),
           duration: formatDuration(recording.duration),
           created_at: formatDate(recording.created_at, this.settings.dateFormat),
