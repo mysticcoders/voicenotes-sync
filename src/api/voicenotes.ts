@@ -39,7 +39,10 @@ export default class VoiceNotesApi {
   /**
    * Makes an authenticated request with consistent error handling
    */
-  private async makeAuthenticatedRequest(endpoint: string, options: Partial<RequestUrlParam> = {}): Promise<RequestUrlResponse> {
+  private async makeAuthenticatedRequest(
+    endpoint: string,
+    options: Partial<RequestUrlParam> = {}
+  ): Promise<RequestUrlResponse> {
     if (!this.hasValidToken()) {
       throw new Error('No valid authentication token');
     }
