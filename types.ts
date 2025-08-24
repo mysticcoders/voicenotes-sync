@@ -20,6 +20,8 @@ export interface VoiceNotesPluginSettings {
   filenameTemplate: string;
   excludeTags: string[];
   dateFormat: string;
+  useCustomChangedAtProperty: boolean;
+  customChangedAtProperty: string;
 }
 
 export interface UserSettings {

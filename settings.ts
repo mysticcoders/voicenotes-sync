@@ -1,7 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
-import VoiceNotesApi from './voicenotes-api';
 import VoiceNotesPlugin from './main';
 import { autoResizeTextArea } from './utils';
+import VoiceNotesApi from './voicenotes-api';
 
 export class VoiceNotesSettingTab extends PluginSettingTab {
   plugin: VoiceNotesPlugin;
@@ -258,7 +258,7 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         autoResizeTextArea(text.inputEl);
         text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
         containerEl.appendChild(text.inputEl);
-      })
+      });
 
     new Setting(containerEl)
       .setName('Note Template')
@@ -278,7 +278,31 @@ export class VoiceNotesSettingTab extends PluginSettingTab {
         autoResizeTextArea(text.inputEl);
         text.inputEl.addEventListener('input', () => autoResizeTextArea(text.inputEl));
         containerEl.appendChild(text.inputEl);
-      })
+      });
+
+    new Setting(containerEl)
+      .setName('Use custom frontmatter property for date sorting')
+      .setDesc(
+        'If you have changed the frontmatter template above, you can specify here which property should be used, e.g. to include todays notes.'
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.useCustomChangedAtProperty || false).onChange(async (value) => {
+          this.plugin.settings.useCustomChangedAtProperty = value;
+          await this.plugin.saveSettings();
+          await this.display(); // Refresh to update disabled state
+        })
+      )
+      .addText((text) => {
+        text
+          .setPlaceholder('Custom setting value')
+          .setValue(this.plugin.settings.customChangedAtProperty || '')
+          .setDisabled(!this.plugin.settings.useCustomChangedAtProperty)
+          .onChange(async (value) => {
+            this.plugin.settings.customChangedAtProperty = value;
+            await this.plugin.saveSettings();
+          });
+        return text;
+      });
 
     new Setting(containerEl)
       .setName('Exclude Tags')
