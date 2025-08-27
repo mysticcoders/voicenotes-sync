@@ -193,8 +193,16 @@ export default class VoiceNotesPlugin extends Plugin {
             if (confirmDelete) {
               try {
                 await this.vnApi.deleteRecording(frontmatter.recording_id);
+
+                // Successfully deleted, now remove recording_id from frontmatter using Obsidian API
+                await this.app.fileManager.processFrontMatter(activeFile, (fm) => {
+                  delete fm.recording_id;
+                });
+
+                new Notice('Recording deleted successfully and recording_id removed from note');
               } catch (error) {
-                
+                new Notice('Failed to delete recording from remote');
+                console.error('Error deleting recording:', error);
               }
             }
           }
