@@ -174,6 +174,33 @@ export default class VoiceNotesPlugin extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: 'delete-remote-voicenote',
+      name: 'Delete Remote Voicenote',
+      callback: async () => {
+        if (!this.settings.token) {
+          new Notice('No access available, please login in plugin settings');
+          return;
+        }
+        const activeFile = this.app.workspace.getActiveFile();
+        if (activeFile) {
+          const cache = this.app.metadataCache.getFileCache(activeFile);
+
+          if (cache && cache.frontmatter) {
+            const frontmatter = cache.frontmatter;
+
+            const confirmDelete = confirm(`Are you sure you want to delete "${frontmatter.title}"?`);
+            if (confirmDelete) {
+              try {
+                await this.vnApi.deleteRecording(frontmatter.recording_id);
+              } catch (error) {
+                
+              }
+            }
+          }
+        }
+      },
+    });
     this.registerEvent(
       this.app.metadataCache.on('deleted', (deletedFile, prevCache) => {
         if (prevCache.frontmatter?.recording_id) {

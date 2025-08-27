@@ -124,7 +124,7 @@ export default class VoiceNotesApi {
     }
   }
 
-  async deleteRecording(recordingId: number): Promise<boolean> {
+  async deleteRecording(recordingId: string): Promise<boolean> {
     if (!this.hasValidToken()) {
       return false;
     }
